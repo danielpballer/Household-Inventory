@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Environment variables — never commit real values
+.env
+.env.local
+.env.*.local
+
+# Vite build output
+frontend/dist/
+frontend/.vite/
+
+# Wrangler build/cache
+worker/.wrangler/
+worker/dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Supabase seed files with real UUIDs (run manually, do not commit)
+supabase/migrations/002_seed_household.sql

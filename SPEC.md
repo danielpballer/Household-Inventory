@@ -47,7 +47,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - `id` (uuid, pk)
 - `household_id` (fk)
 - `name` (text) — e.g., "Chobani yogurt"
-- `category` (text) — Produce, Dairy, Pantry, Freezer, Meat, Frozen, Beverages, Household, Other
+- `category` (text) — Produce, Dairy, Pantry, Frozen, Meat, Beverages, Household, Other. Enforced via Postgres CHECK constraint. (Freezer removed — redundant with Frozen.)
 - `quantity` (integer, default 1)
 - `created_at`, `updated_at`
 
@@ -80,10 +80,10 @@ The make-or-break UX requirement: **adding items must not require photographing 
 
 ## Architecture
 
-- **Frontend:** Vanilla HTML/CSS/JS PWA. Service worker for offline caching of inventory list. IndexedDB mirror of inventory for instant load. Installable to home screen.
+- **Frontend:** Preact PWA, built with Vite (no router library — hash-based routing in app.jsx). Service worker for offline caching of inventory list. IndexedDB mirror of inventory for instant load via `idb` library. Installable to home screen.
 - **Hosting (frontend):** GitHub Pages.
 - **Backend:** Cloudflare Workers (one Worker, multiple routes). Holds the Anthropic API key. All vision API calls proxied through here.
-- **Database & Auth:** Supabase. Postgres + Supabase Auth (magic link email) + Realtime subscriptions for the activity feed.
+- **Database & Auth:** Supabase. Postgres + Supabase Auth (magic link email) + Realtime subscriptions (Phase 2: live activity feed sync between Dan's and Abby's phones).
 - **Image storage:** Supabase Storage bucket for haul photos. Auto-delete after 30 days.
 
 ### Database Security (RLS)
@@ -99,11 +99,13 @@ The make-or-break UX requirement: **adding items must not require photographing 
   - `SUPABASE_URL` — Supabase project URL
   - `SUPABASE_SERVICE_ROLE_KEY` — Supabase service_role key (used only for cross-user operations like the spend meter; all user-scoped queries go through the frontend with RLS)
   - `SUPABASE_JWT_SECRET` — used to verify JWTs on incoming requests
-- **Frontend secrets** (non-sensitive, safe to ship in client code) live in a gitignored `.env` file during local development and are injected at build time or hardcoded in the deployed PWA. These are:
-  - Supabase Project URL
-  - Supabase anon key (public by design — RLS enforces access control)
-  - Cloudflare Worker URL (the deployed endpoint the PWA calls)
-- A `.env.example` file **may** be committed showing the variable names with empty or placeholder values, so future-me knows what to set. Real values never go in it.
+- **Frontend env vars** use Vite's standard `import.meta.env.VITE_*` pattern. These are non-sensitive but not committed to the repo — even "public-by-design" keys are kept out of git to avoid scraping bots and to enable env switching if staging is ever added:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_ANON_KEY` (public by design — RLS enforces access control, but not committed)
+  - `VITE_WORKER_URL` (the deployed Cloudflare Worker endpoint)
+  - **Local dev:** values live in a gitignored `frontend/.env.local` file.
+  - **Production:** GitHub Actions injects them from GitHub repository Secrets at Vite build time. No values are ever committed to the repo.
+- A `frontend/.env.example` file is committed showing variable names with empty values so future-me knows what to set.
 - The Anthropic API key has a hard monthly spend limit of $10 set in the Anthropic console as a last-resort cap, independent of the Worker's $0.50/day cap.
 
 ### Request flow for a photo parse
@@ -111,15 +113,13 @@ The make-or-break UX requirement: **adding items must not require photographing 
 2. PWA creates a `pending_hauls` row with status=`parsing`.
 3. PWA calls Cloudflare Worker `/parse-haul` with the haul ID and JWT.
 4. Worker verifies JWT, checks email allowlist, checks daily spend cap and per-user rate limit.
-5. Worker fetches photos from Supabase Storage, calls Anthropic API (Haiku for receipts, Sonnet for counter photos), updates `pending_hauls` with parsed results and status=`ready`.
-6. PWA gets realtime notification, shows haul in inbox.
+5. Worker fetches photos from Supabase Storage, calls Anthropic API (Haiku for receipts, Sonnet for counter photos), updates `pending_hauls` with parsed results and status=`ready`. Returns 200 to the PWA.
+6. PWA receives the 200 response and navigates to the Pending Hauls inbox. (Phase 1: synchronous response. Phase 2: Worker returns 202 immediately and PWA subscribes to realtime status updates on the `pending_hauls` row.)
 
 ## Authentication & Authorization
 
 - **Method:** Supabase Auth with **magic link to email**. No passwords.
-- **Allowlist:** Only `danballer13@gmail.com` and `danabbyballer@gmail.com` can sign in. Enforced in two places:
-  1. Supabase Auth hook rejects sign-up attempts from other emails.
-  2. Cloudflare Worker re-verifies the email on the JWT against a hardcoded allowlist before any API call.
+- **Allowlist:** Only `danballer13@gmail.com` and `danabbyballer@gmail.com` can sign in. Enforced at the Cloudflare Worker: every API call re-verifies the email on the JWT against a hardcoded allowlist. (A Supabase Auth hook for signup rejection is unnecessary since public signups are disabled in the Supabase dashboard.)
 - **Session persistence:** Supabase session stored in browser local storage, set to 1-year expiry with automatic refresh. After first sign-in on a device, the user never sees a login screen again unless they sign out or clear browser data.
 - **JWT verification in Worker:** Every Worker request must include a valid Supabase JWT. Worker validates signature, checks expiry, checks email against allowlist. No valid token = 401, no Anthropic API call.
 
@@ -171,6 +171,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - "Mark out" decrement option
 - Running Low view as a dedicated screen
 - Realtime sync between Dan's and Abby's phones
+- Prompt caching for the `/parse-haul` endpoint (reduces API costs once the parse flow is stable — the system prompt is identical across calls, making it a good caching candidate)
 
 ### Phase 3 — Later (explicitly out of scope for v1)
 - "How long things last" analytics (requires the event log we're already building, so easy to add later)
@@ -179,10 +180,15 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - Family/multi-user expansion
 - Barcode scanning fallback
 
+## Decisions Resolved During Planning
+
+- **Category list:** Produce, Dairy, Pantry, Frozen, Meat, Beverages, Household, Other. "Freezer" removed as redundant with Frozen. Confirmed.
+- **Decrement to 0:** Items stay at quantity=0 and remain visible in the Running Low view. Not auto-deleted. User must explicitly remove.
+- **Haul commit behavior:** When a parsed haul item matches an existing inventory item (same name + category), **increment** the existing quantity rather than overwrite it. Example: existing Milk qty=1 + haul Milk qty=2 → Milk qty=3.
+
 ## Open Questions to Resolve During Build
-- Exact category list — confirm with Abby before finalizing the enum.
-- Receipt parsing prompt: how to handle store-specific abbreviations? Likely needs a few-shot prompt with examples from the stores Abby actually shops at.
-- Should "decrement to 0" auto-move an item to a "recently finished" list rather than deleting it? Probably yes, for the running-low view to be useful.
+
+- **Receipt parsing prompt:** Needs a few-shot prompt with real examples from stores Abby shops at (Whole Foods, Costco, Trader Joe's). Dan will gather 2–3 sample receipts before Step 7 (parse-haul endpoint). Goal is to handle store-specific abbreviations (e.g., "CHOB PLN YGT 5.3OZ").
 
 ## Success Criteria
 - Abby uses it for 2 consecutive weeks without prompting.
