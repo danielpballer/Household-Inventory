@@ -86,6 +86,12 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - **Database & Auth:** Supabase. Postgres + Supabase Auth (magic link email) + Realtime subscriptions for the activity feed.
 - **Image storage:** Supabase Storage bucket for haul photos. Auto-delete after 30 days.
 
+### Database Security (RLS)
+- Row Level Security is enabled on all tables in the public schema (Supabase "automatic RLS" setting is on).
+- Every table must have explicit RLS policies scoped to the user's household — a user can only read and write rows where `household_id` matches a household they belong to.
+- RLS policies must be created as part of the schema migration, not added later. Tables without policies will be inaccessible from the frontend.
+- The `service_role` key (used only in the Cloudflare Worker) bypasses RLS and should be used sparingly — only for operations that legitimately need cross-user access, like the spend cap meter.
+
 ### Request flow for a photo parse
 1. PWA uploads photo(s) to Supabase Storage.
 2. PWA creates a `pending_hauls` row with status=`parsing`.
