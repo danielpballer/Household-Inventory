@@ -92,6 +92,20 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - RLS policies must be created as part of the schema migration, not added later. Tables without policies will be inaccessible from the frontend.
 - The `service_role` key (used only in the Cloudflare Worker) bypasses RLS and should be used sparingly — only for operations that legitimately need cross-user access, like the spend cap meter.
 
+### Secrets Management
+- No secrets are ever committed to the repo. `.env` and `.env.*` files are gitignored.
+- **Cloudflare Worker secrets** are managed via `wrangler secret put <NAME>` and stored in Cloudflare's secret store. Never placed in `wrangler.toml`. The Worker needs:
+  - `ANTHROPIC_API_KEY` — Anthropic API key for vision calls
+  - `SUPABASE_URL` — Supabase project URL
+  - `SUPABASE_SERVICE_ROLE_KEY` — Supabase service_role key (used only for cross-user operations like the spend meter; all user-scoped queries go through the frontend with RLS)
+  - `SUPABASE_JWT_SECRET` — used to verify JWTs on incoming requests
+- **Frontend secrets** (non-sensitive, safe to ship in client code) live in a gitignored `.env` file during local development and are injected at build time or hardcoded in the deployed PWA. These are:
+  - Supabase Project URL
+  - Supabase anon key (public by design — RLS enforces access control)
+  - Cloudflare Worker URL (the deployed endpoint the PWA calls)
+- A `.env.example` file **may** be committed showing the variable names with empty or placeholder values, so future-me knows what to set. Real values never go in it.
+- The Anthropic API key has a hard monthly spend limit of $10 set in the Anthropic console as a last-resort cap, independent of the Worker's $0.50/day cap.
+
 ### Request flow for a photo parse
 1. PWA uploads photo(s) to Supabase Storage.
 2. PWA creates a `pending_hauls` row with status=`parsing`.
