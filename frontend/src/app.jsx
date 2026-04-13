@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'preact/hooks';
 import { supabase } from './db.js';
 import { SignIn } from './screens/SignIn.jsx';
+import { Inventory } from './screens/Inventory.jsx';
 
 function getHash() {
   return window.location.hash || '#inventory';
@@ -63,19 +64,14 @@ export function App() {
   );
 }
 
-// Placeholder dispatcher — each real screen is wired up in Steps 10–15
 function Screen({ route, session }) {
+  if (route === '#inventory') return <Inventory session={session} />;
+
+  // Remaining screens wired up in Steps 11–15
   return (
     <div style={{ padding: '1.5rem' }}>
-      <h2>Pantry</h2>
-      <p style={{ marginTop: '0.5rem', color: '#374151' }}>
-        Signed in as <strong>{session.user.email}</strong>
-      </p>
-      <p style={{ marginTop: '1rem', color: '#6b7280', fontSize: '0.9rem' }}>
-        Current screen: <code>{route}</code>
-      </p>
-      <p style={{ marginTop: '0.5rem', color: '#6b7280', fontSize: '0.9rem' }}>
-        Real screens are wired up in Steps 10–15.
+      <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>
+        Screen <code>{route}</code> coming soon.
       </p>
       <button
         style={{ marginTop: '2rem', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}

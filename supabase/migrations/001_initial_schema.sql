@@ -155,12 +155,12 @@ CREATE POLICY "Members can view their household"
     id IN (SELECT household_id FROM household_members WHERE user_id = auth.uid())
   );
 
--- household_members: read-only (no frontend writes)
+-- household_members: read-only (no frontend writes).
+-- Uses a direct column check (not a subquery back into household_members) to
+-- avoid infinite recursion when other policies use this table as a subquery.
 CREATE POLICY "Members can view household membership"
   ON household_members FOR SELECT TO authenticated
-  USING (
-    household_id IN (SELECT household_id FROM household_members WHERE user_id = auth.uid())
-  );
+  USING (user_id = auth.uid());
 
 -- items: full CRUD for household members
 CREATE POLICY "Members can view their household items"
