@@ -28,3 +28,4 @@ npm-debug.log*
 
 # Supabase seed files with real UUIDs (run manually, do not commit)
 supabase/migrations/002_seed_household.sql
+supabase/migrations/003_seed_test_items.sql
