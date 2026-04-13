@@ -15,6 +15,7 @@
 import { requireAuth } from './auth.js';
 import { checkSpendCap } from './spend-cap.js';
 import { checkRateLimit } from './rate-limit.js';
+import { handleParseHaul } from './parse-haul.js';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -62,7 +63,7 @@ async function handleRequest(request, env, ctx) {
 
   // 4. Route handlers
   if (request.method === 'POST' && pathname === '/parse-haul') {
-    return Response.json({ error: 'not implemented' }, { status: 501 });
+    return handleParseHaul(request, env, auth.user);
   }
 
   return Response.json({ error: 'not found' }, { status: 404 });
