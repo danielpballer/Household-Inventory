@@ -3,10 +3,18 @@
  *
  * Routes:
  *   GET  /health      — liveness check, no auth required
- *   POST /parse-haul  — receipt parsing via Anthropic (spend cap + rate limit added Step 6)
+ *   POST /parse-haul  — receipt parsing via Anthropic (implemented Step 7)
+ *
+ * Request pipeline for authenticated routes:
+ *   1. requireAuth    — verify Supabase JWT, check email allowlist
+ *   2. checkSpendCap  — reject if daily USD spend >= DAILY_SPEND_CAP_USD
+ *   3. checkRateLimit — reject if > 20 parses/user/hour
+ *   4. route handler
  */
 
 import { requireAuth } from './auth.js';
+import { checkSpendCap } from './spend-cap.js';
+import { checkRateLimit } from './rate-limit.js';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -40,11 +48,19 @@ async function handleRequest(request, env, ctx) {
     return Response.json({ ok: true, ts: new Date().toISOString() });
   }
 
-  // All routes below require a valid Supabase JWT from an allowed email
+  // 1. Auth
   const auth = await requireAuth(request, env);
   if (auth.error) return auth.error;
 
-  // Parse haul — stub until Steps 6–7
+  // 2. Daily spend cap
+  const spendCapError = await checkSpendCap(auth.user.id, env);
+  if (spendCapError) return spendCapError;
+
+  // 3. Per-user rate limit
+  const rateLimitError = await checkRateLimit(auth.user.id, env);
+  if (rateLimitError) return rateLimitError;
+
+  // 4. Route handlers
   if (request.method === 'POST' && pathname === '/parse-haul') {
     return Response.json({ error: 'not implemented' }, { status: 501 });
   }

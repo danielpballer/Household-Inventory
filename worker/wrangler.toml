@@ -5,6 +5,10 @@ compatibility_date = "2026-04-12"
 # KV namespace for per-user sliding-window rate limiting.
 # After running `wrangler kv:namespace create RATE_LIMIT`, paste the
 # returned id below.
+[vars]
+# Non-sensitive config — override with `wrangler secret put DAILY_SPEND_CAP_USD` if needed
+DAILY_SPEND_CAP_USD = "0.50"
+
 [[kv_namespaces]]
 binding = "RATE_LIMIT"
 id = "6985cb1636544855bc38ed516b6df54d"
