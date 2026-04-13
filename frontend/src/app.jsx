@@ -2,6 +2,7 @@ import { useState, useEffect } from 'preact/hooks';
 import { supabase } from './db.js';
 import { SignIn } from './screens/SignIn.jsx';
 import { Inventory } from './screens/Inventory.jsx';
+import { AddItem } from './screens/AddItem.jsx';
 
 function getHash() {
   return window.location.hash || '#inventory';
@@ -56,6 +57,7 @@ export function App() {
       </main>
       <nav class="nav-bar">
         <a href="#inventory"   class={route === '#inventory'    ? 'active' : ''}>Inventory</a>
+        <a href="#add-item"    class={route === '#add-item'     ? 'active' : ''}>+ Item</a>
         <a href="#add-haul"    class={route === '#add-haul'     ? 'active' : ''}>+ Haul</a>
         <a href="#hauls-inbox" class={route === '#hauls-inbox'  ? 'active' : ''}>Inbox</a>
         <a href="#activity"    class={route === '#activity'     ? 'active' : ''}>Activity</a>
@@ -66,6 +68,7 @@ export function App() {
 
 function Screen({ route, session }) {
   if (route === '#inventory') return <Inventory session={session} />;
+  if (route === '#add-item')  return <AddItem session={session} />;
 
   // Remaining screens wired up in Steps 11–15
   return (
