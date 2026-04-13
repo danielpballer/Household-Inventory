@@ -255,11 +255,22 @@ body {
   border-bottom: 1px solid #f9fafb;
 }
 
+.item-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding-right: 0.5rem;
+}
+
 .item-name {
   font-size: 0.95rem;
   color: #111827;
-  flex: 1;
-  padding-right: 0.5rem;
+}
+
+.item-date {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 0.1rem;
 }
 
 .item-controls {

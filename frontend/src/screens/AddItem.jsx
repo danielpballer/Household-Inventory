@@ -47,7 +47,7 @@ export function AddItem({ session }) {
       const newQty = existing.quantity + quantity;
       const { data: updated, error: updateError } = await supabase
         .from('items')
-        .update({ quantity: newQty })
+        .update({ quantity: newQty, last_purchased_at: new Date().toISOString() })
         .eq('id', existing.id)
         .select()
         .single();
@@ -62,7 +62,7 @@ export function AddItem({ session }) {
       // Insert new item
       const { data: inserted, error: insertError } = await supabase
         .from('items')
-        .insert({ household_id: householdId, name: trimmedName, category, quantity })
+        .insert({ household_id: householdId, name: trimmedName, category, quantity, last_purchased_at: new Date().toISOString() })
         .select()
         .single();
 

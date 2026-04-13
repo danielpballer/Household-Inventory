@@ -147,7 +147,14 @@ export function Inventory({ session }) {
             <h3 class="category-heading">{category}</h3>
             {grouped[category].map((item) => (
               <div key={item.id} class="item-row">
-                <span class="item-name">{item.name}</span>
+                <div class="item-info">
+                  <span class="item-name">{item.name}</span>
+                  {item.last_purchased_at && (
+                    <span class="item-date">
+                      Last bought: {new Date(item.last_purchased_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  )}
+                </div>
                 <div class="item-controls">
                   <span class={`item-qty ${item.quantity <= 2 ? 'low' : ''}`}>
                     {item.quantity}
