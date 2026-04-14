@@ -38,8 +38,8 @@ Produce, Dairy, Pantry, Frozen, Meat, Beverages, Household, Other
 1. SKIP these line types entirely: savings/discounts, tare weights, container deposits, subtotals, taxes, totals, payment info, loyalty program notes, store addresses, cashier names.
 2. SKIP non-consumable items (e.g., reusable bags).
 3. Expand abbreviations to human-readable names (see patterns below).
-4. Remove brand code prefixes (e.g., "365WFM", "GRPCOM", "VTLFR", "ASPN", "LBPLATF") unless the brand is part of the common name.
-5. Include "Organic" in the name when the receipt shows "OG".
+4. Remove brand code prefixes (e.g., "365WFM", "GRPCOM", "VTLFR", "ASPN", "LBPLATF") and brand names (e.g., "Kirkland", "Vital Farms", "Creminelli", "King Arthur", "Driscoll's", "Asmar's"). Use the generic product name only. Exception: keep the brand only when the product is not recognizable without it (e.g., "Cafe Cubano", "Parmigiano Reggiano", "Heavenly Hunks").
+5. Drop "Organic" from all item names. Use just the product name (e.g., "Red Onion" not "Organic Red Onion").
 6. Quantity: use the count shown ("4 @" = 4, "Qty 2" = 2, "Qty 3 Reg" = 3). Default to 1 when not specified. For weight-sold items (e.g., "1.32 lb @ $2.69/lb"), quantity = 1.
 7. Confidence: high = clearly readable name, medium = interpreted from abbreviations with reasonable certainty, low = significant guessing required.
 
@@ -106,7 +106,7 @@ Items in Transaction: 4
 Output:
 [{"name": "Whole Milk Mozzarella", "category": "Dairy", "quantity": 4, "confidence": "high"}]
 
-## Example 2 — Whole Foods (abbreviations, skip lines)
+## Example 2 — Whole Foods (abbreviations, skip lines, drop "Organic" and brands)
 
 Receipt lines:
 TRKLSP OG HMEN WL MLK GN    F  $15.39
@@ -129,18 +129,18 @@ FRUIT MIX                    F  $25.58
 
 Output:
 [
-  {"name": "Organic Whole Milk (Gallon)", "category": "Dairy", "quantity": 1, "confidence": "medium"},
+  {"name": "Whole Milk (Gallon)", "category": "Dairy", "quantity": 1, "confidence": "medium"},
   {"name": "Avocado Oil", "category": "Pantry", "quantity": 1, "confidence": "high"},
-  {"name": "Organic Cherry Angel Tomatoes", "category": "Produce", "quantity": 1, "confidence": "medium"},
-  {"name": "Organic Sheep Feta", "category": "Dairy", "quantity": 1, "confidence": "high"},
-  {"name": "Organic Red Onion", "category": "Produce", "quantity": 1, "confidence": "high"},
-  {"name": "Organic Baby Broccoli", "category": "Produce", "quantity": 1, "confidence": "high"},
-  {"name": "Organic Red Seedless Grapes", "category": "Produce", "quantity": 2, "confidence": "high"},
-  {"name": "Organic Mozzarella String Cheese", "category": "Dairy", "quantity": 1, "confidence": "high"},
-  {"name": "Organic Chicken Breast", "category": "Meat", "quantity": 1, "confidence": "high"},
+  {"name": "Cherry Angel Tomatoes", "category": "Produce", "quantity": 1, "confidence": "medium"},
+  {"name": "Sheep Feta", "category": "Dairy", "quantity": 1, "confidence": "high"},
+  {"name": "Red Onion", "category": "Produce", "quantity": 1, "confidence": "high"},
+  {"name": "Baby Broccoli", "category": "Produce", "quantity": 1, "confidence": "high"},
+  {"name": "Red Seedless Grapes", "category": "Produce", "quantity": 2, "confidence": "high"},
+  {"name": "Mozzarella String Cheese", "category": "Dairy", "quantity": 1, "confidence": "high"},
+  {"name": "Chicken Breast", "category": "Meat", "quantity": 1, "confidence": "high"},
   {"name": "Cantaloupe", "category": "Produce", "quantity": 1, "confidence": "high"},
-  {"name": "Vital Farms Organic Large Grade A Eggs", "category": "Dairy", "quantity": 2, "confidence": "high"},
-  {"name": "Organic Large Pasture-Raised Brown Eggs", "category": "Dairy", "quantity": 1, "confidence": "medium"},
+  {"name": "Large Grade A Eggs", "category": "Dairy", "quantity": 2, "confidence": "high"},
+  {"name": "Large Pasture-Raised Brown Eggs", "category": "Dairy", "quantity": 1, "confidence": "medium"},
   {"name": "Fruit Mix", "category": "Produce", "quantity": 1, "confidence": "high"}
 ]
 
@@ -162,16 +162,16 @@ OG LG PR BRWN EGG            F   $6.36
 
 Output:
 [
-  {"name": "King Arthur Organic Flour", "category": "Pantry", "quantity": 1, "confidence": "high"},
-  {"name": "Creminelli Sliced Pepperoni", "category": "Meat", "quantity": 3, "confidence": "high"},
-  {"name": "Driscoll's Organic Strawberry", "category": "Produce", "quantity": 1, "confidence": "high"},
-  {"name": "Organic Whole Milk", "category": "Dairy", "quantity": 1, "confidence": "high"},
-  {"name": "Asmar's Original Hummus", "category": "Pantry", "quantity": 1, "confidence": "high"},
-  {"name": "Organic Red Seedless Grapes", "category": "Produce", "quantity": 2, "confidence": "high"},
-  {"name": "Organic Yellow Onion", "category": "Produce", "quantity": 1, "confidence": "high"},
-  {"name": "Organic Orange Bell Pepper", "category": "Produce", "quantity": 1, "confidence": "high"},
-  {"name": "Organic Red Onion", "category": "Produce", "quantity": 1, "confidence": "high"},
-  {"name": "Organic Large Pasture-Raised Brown Eggs", "category": "Dairy", "quantity": 1, "confidence": "high"}
+  {"name": "Flour", "category": "Pantry", "quantity": 1, "confidence": "high"},
+  {"name": "Sliced Pepperoni", "category": "Meat", "quantity": 3, "confidence": "high"},
+  {"name": "Strawberries", "category": "Produce", "quantity": 1, "confidence": "high"},
+  {"name": "Whole Milk", "category": "Dairy", "quantity": 1, "confidence": "high"},
+  {"name": "Original Hummus", "category": "Pantry", "quantity": 1, "confidence": "high"},
+  {"name": "Red Seedless Grapes", "category": "Produce", "quantity": 2, "confidence": "high"},
+  {"name": "Yellow Onion", "category": "Produce", "quantity": 1, "confidence": "high"},
+  {"name": "Orange Bell Pepper", "category": "Produce", "quantity": 1, "confidence": "high"},
+  {"name": "Red Onion", "category": "Produce", "quantity": 1, "confidence": "high"},
+  {"name": "Large Pasture-Raised Brown Eggs", "category": "Dairy", "quantity": 1, "confidence": "high"}
 ]
 
 ## Example 4 — Costco (repeated lines = multiple units, skip non-consumables)
@@ -200,18 +200,18 @@ Receipt lines:
 
 Output:
 [
-  {"name": "Organic Strawberries", "category": "Produce", "quantity": 1, "confidence": "high"},
-  {"name": "Kirkland Peanut Butter", "category": "Pantry", "quantity": 2, "confidence": "high"},
+  {"name": "Strawberries", "category": "Produce", "quantity": 1, "confidence": "high"},
+  {"name": "Peanut Butter", "category": "Pantry", "quantity": 2, "confidence": "high"},
   {"name": "Beef Sticks", "category": "Meat", "quantity": 2, "confidence": "high"},
   {"name": "Mandarins", "category": "Produce", "quantity": 1, "confidence": "high"},
   {"name": "Goat Cheese Log", "category": "Dairy", "quantity": 2, "confidence": "high"},
   {"name": "Cafe Cubano", "category": "Beverages", "quantity": 4, "confidence": "high"},
-  {"name": "Ziploc Gallon Bags", "category": "Household", "quantity": 1, "confidence": "high"},
+  {"name": "Gallon Zip Bags", "category": "Household", "quantity": 1, "confidence": "high"},
   {"name": "Parmigiano Reggiano", "category": "Dairy", "quantity": 1, "confidence": "high"},
   {"name": "Heavenly Hunks", "category": "Pantry", "quantity": 1, "confidence": "high"},
-  {"name": "Kirkland Sockeye Salmon", "category": "Meat", "quantity": 1, "confidence": "high"},
-  {"name": "Hershey's Kisses", "category": "Pantry", "quantity": 1, "confidence": "high"},
-  {"name": "That's It Fruit Bars", "category": "Pantry", "quantity": 1, "confidence": "high"}
+  {"name": "Sockeye Salmon", "category": "Meat", "quantity": 1, "confidence": "high"},
+  {"name": "Chocolate Kisses", "category": "Pantry", "quantity": 1, "confidence": "high"},
+  {"name": "Fruit Bars", "category": "Pantry", "quantity": 1, "confidence": "high"}
 ]`;
 
 // ---------------------------------------------------------------------------

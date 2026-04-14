@@ -5,6 +5,7 @@ import { Inventory } from './screens/Inventory.jsx';
 import { AddItem } from './screens/AddItem.jsx';
 import { AddHaul } from './screens/AddHaul.jsx';
 import { HaulsInbox } from './screens/HaulsInbox.jsx';
+import { ReviewHaul } from './screens/ReviewHaul.jsx';
 
 function getHash() {
   return window.location.hash || '#inventory';
@@ -55,7 +56,7 @@ export function App() {
   return (
     <div class="app">
       <main class="screen">
-        <Screen route={route} session={session} />
+        <Screen route={route} hash={hash} session={session} />
       </main>
       <nav class="nav-bar">
         <a href="#inventory"   class={route === '#inventory'    ? 'active' : ''}>Inventory</a>
@@ -68,11 +69,15 @@ export function App() {
   );
 }
 
-function Screen({ route, session }) {
-  if (route === '#inventory') return <Inventory session={session} />;
-  if (route === '#add-item')  return <AddItem session={session} />;
+function Screen({ route, hash, session }) {
+  if (route === '#inventory')   return <Inventory session={session} />;
+  if (route === '#add-item')    return <AddItem session={session} />;
   if (route === '#add-haul')    return <AddHaul session={session} />;
   if (route === '#hauls-inbox') return <HaulsInbox />;
+  if (route === '#review-haul') {
+    const haulId = new URLSearchParams(hash.split('?')[1] || '').get('id');
+    return <ReviewHaul haulId={haulId} session={session} />;
+  }
 
   // Remaining screens wired up in Steps 11–15
   return (
