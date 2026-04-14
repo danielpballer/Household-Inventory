@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import { supabase } from '../db.js';
 import { getInventory, setInventory } from '../offline.js';
 
@@ -8,6 +8,9 @@ export function Inventory({ session }) {
   const [showLowOnly, setShowLowOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(navigator.onLine);
+  const [editingId, setEditingId] = useState(null);
+  const [editingName, setEditingName] = useState('');
+  const editInputRef = useRef(null);
 
   useEffect(() => {
     const onOnline = () => setOnline(true);
@@ -22,24 +25,19 @@ export function Inventory({ session }) {
 
   useEffect(() => {
     async function load() {
-      // Show cached data immediately so the screen isn't blank
       const cached = await getInventory();
       if (cached.length > 0) {
         setItems(cached);
         setLoading(false);
       }
-
       if (!navigator.onLine) {
         setLoading(false);
         return;
       }
-
-      // Fetch fresh data from Supabase (RLS scopes to the user's household)
       const { data, error } = await supabase
         .from('items')
         .select('*')
         .order('name');
-
       if (!error && data) {
         setItems(data);
         await setInventory(data);
@@ -49,26 +47,24 @@ export function Inventory({ session }) {
     load();
   }, []);
 
+  // Focus the edit input whenever editingId changes
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingId]);
+
   async function updateQuantity(item, delta) {
     if (!online) return;
-
     const newQty = Math.max(0, item.quantity + delta);
-
-    // Optimistic update
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, quantity: newQty } : i)));
-
-    const { error } = await supabase
-      .from('items')
-      .update({ quantity: newQty })
-      .eq('id', item.id);
-
+    const { error } = await supabase.from('items').update({ quantity: newQty }).eq('id', item.id);
     if (error) {
-      // Revert on failure
       setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
       console.error('Update failed:', error.message);
       return;
     }
-
     await supabase.from('activity_log').insert({
       household_id: item.household_id,
       item_id: item.id,
@@ -77,12 +73,105 @@ export function Inventory({ session }) {
       action: delta < 0 ? 'decremented' : 'edited',
       quantity_delta: delta,
     });
-
     setItems((prev) => {
       const updated = prev.map((i) => (i.id === item.id ? { ...i, quantity: newQty } : i));
       setInventory(updated);
       return updated;
     });
+  }
+
+  function startEdit(item) {
+    setEditingId(item.id);
+    setEditingName(item.name);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditingName('');
+  }
+
+  async function saveEdit(item) {
+    const newName = editingName.trim();
+    if (!newName || newName === item.name) {
+      cancelEdit();
+      return;
+    }
+
+    // Check if another item with the new name already exists
+    const duplicate = items.find(
+      (i) => i.id !== item.id && i.name.toLowerCase() === newName.toLowerCase()
+    );
+
+    if (duplicate) {
+      // Merge: sum quantities into the duplicate, delete the current item.
+      // Keep the more recent last_purchased_at of the two.
+      const mergedQty = duplicate.quantity + item.quantity;
+      const aDate = item.last_purchased_at ? new Date(item.last_purchased_at) : null;
+      const bDate = duplicate.last_purchased_at ? new Date(duplicate.last_purchased_at) : null;
+      const mergedDate = !aDate ? duplicate.last_purchased_at
+        : !bDate ? item.last_purchased_at
+        : aDate > bDate ? item.last_purchased_at
+        : duplicate.last_purchased_at;
+
+      const { error: mergeError } = await supabase
+        .from('items')
+        .update({ quantity: mergedQty, last_purchased_at: mergedDate })
+        .eq('id', duplicate.id);
+
+      if (mergeError) {
+        console.error('Merge failed:', mergeError.message);
+        cancelEdit();
+        return;
+      }
+
+      await supabase.from('items').delete().eq('id', item.id);
+
+      await supabase.from('activity_log').insert({
+        household_id: item.household_id,
+        item_id: duplicate.id,
+        item_name_snapshot: duplicate.name,
+        user_id: session.user.id,
+        action: 'edited',
+        quantity_delta: item.quantity,
+      });
+
+      setItems((prev) => {
+        const updated = prev
+          .filter((i) => i.id !== item.id)
+          .map((i) => (i.id === duplicate.id ? { ...i, quantity: mergedQty, last_purchased_at: mergedDate } : i));
+        setInventory(updated);
+        return updated;
+      });
+    } else {
+      // Simple rename
+      const { error } = await supabase
+        .from('items')
+        .update({ name: newName })
+        .eq('id', item.id);
+
+      if (error) {
+        console.error('Rename failed:', error.message);
+        cancelEdit();
+        return;
+      }
+
+      await supabase.from('activity_log').insert({
+        household_id: item.household_id,
+        item_id: item.id,
+        item_name_snapshot: newName,
+        user_id: session.user.id,
+        action: 'edited',
+        quantity_delta: 0,
+      });
+
+      setItems((prev) => {
+        const updated = prev.map((i) => (i.id === item.id ? { ...i, name: newName } : i));
+        setInventory(updated);
+        return updated;
+      });
+    }
+
+    cancelEdit();
   }
 
   // Apply search and filter
@@ -146,7 +235,34 @@ export function Inventory({ session }) {
             {grouped[category].map((item) => (
               <div key={item.id} class="item-row">
                 <div class="item-info">
-                  <span class="item-name">{item.name}</span>
+                  {editingId === item.id ? (
+                    <input
+                      ref={editInputRef}
+                      type="text"
+                      class="item-name-input"
+                      value={editingName}
+                      onInput={(e) => setEditingName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveEdit(item);
+                        if (e.key === 'Escape') cancelEdit();
+                      }}
+                      onBlur={() => saveEdit(item)}
+                    />
+                  ) : (
+                    <div class="item-name-row">
+                      <span class="item-name">{item.name}</span>
+                      {online && (
+                        <button
+                          class="edit-name-btn"
+                          onClick={() => startEdit(item)}
+                          aria-label={`Edit ${item.name}`}
+                          title="Edit name"
+                        >
+                          ✎
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {item.last_purchased_at && (
                     <span class="item-date">
                       Last bought: {new Date(item.last_purchased_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
