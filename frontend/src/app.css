@@ -273,6 +273,39 @@ body {
   margin-top: 0.1rem;
 }
 
+.item-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.edit-name-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #9ca3af;
+  padding: 0.1rem 0.2rem;
+  line-height: 1;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.edit-name-btn:hover {
+  color: #2d6a4f;
+}
+
+.item-name-input {
+  font-size: 0.95rem;
+  color: #111827;
+  border: 1.5px solid #2d6a4f;
+  border-radius: 6px;
+  padding: 0.2rem 0.4rem;
+  width: 100%;
+  outline: none;
+  background: #fff;
+}
+
 .item-controls {
   display: flex;
   align-items: center;
