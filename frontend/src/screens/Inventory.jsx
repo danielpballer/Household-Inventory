@@ -55,6 +55,38 @@ export function Inventory({ session }) {
     }
   }, [editingId]);
 
+  async function deleteItem(item) {
+    if (!online) return;
+
+    setItems((prev) => prev.filter((i) => i.id !== item.id));
+
+    const { error } = await supabase.from('items').delete().eq('id', item.id);
+
+    if (error) {
+      setItems((prev) => {
+        const restored = [...prev, item].sort((a, b) => a.name.localeCompare(b.name));
+        setInventory(restored);
+        return restored;
+      });
+      console.error('Delete failed:', error.message);
+      return;
+    }
+
+    await supabase.from('activity_log').insert({
+      household_id: item.household_id,
+      item_id: item.id,
+      item_name_snapshot: item.name,
+      user_id: session.user.id,
+      action: 'deleted',
+      quantity_delta: 0,
+    });
+
+    setItems((prev) => {
+      setInventory(prev);
+      return prev;
+    });
+  }
+
   async function updateQuantity(item, delta) {
     if (!online) return;
     const newQty = Math.max(0, item.quantity + delta);
@@ -270,15 +302,26 @@ export function Inventory({ session }) {
                   )}
                 </div>
                 <div class="item-controls">
-                  <button
-                    class="decrement-btn"
-                    onClick={() => updateQuantity(item, -1)}
-                    disabled={!online || item.quantity === 0}
-                    title={!online ? 'Offline — changes disabled' : '−1'}
-                    aria-label={`Decrease ${item.name}`}
-                  >
-                    −
-                  </button>
+                  {item.quantity === 0 && online ? (
+                    <button
+                      class="delete-item-btn"
+                      onClick={() => deleteItem(item)}
+                      aria-label={`Delete ${item.name}`}
+                      title="Remove from inventory"
+                    >
+                      🗑
+                    </button>
+                  ) : (
+                    <button
+                      class="decrement-btn"
+                      onClick={() => updateQuantity(item, -1)}
+                      disabled={!online || item.quantity === 0}
+                      title={!online ? 'Offline — changes disabled' : '−1'}
+                      aria-label={`Decrease ${item.name}`}
+                    >
+                      −
+                    </button>
+                  )}
                   <span class={`item-qty ${item.quantity <= 2 ? 'low' : ''}`}>
                     {item.quantity}
                   </span>

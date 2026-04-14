@@ -350,6 +350,25 @@ body {
   cursor: not-allowed;
 }
 
+.delete-item-btn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1.5px solid #fca5a5;
+  background: #fef2f2;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.delete-item-btn:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
 /* Add Item / shared form screen */
 .screen-header {
   display: flex;
