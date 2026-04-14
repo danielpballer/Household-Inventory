@@ -6,6 +6,7 @@ import { AddItem } from './screens/AddItem.jsx';
 import { AddHaul } from './screens/AddHaul.jsx';
 import { HaulsInbox } from './screens/HaulsInbox.jsx';
 import { ReviewHaul } from './screens/ReviewHaul.jsx';
+import { Activity } from './screens/Activity.jsx';
 
 function getHash() {
   return window.location.hash || '#inventory';
@@ -78,6 +79,7 @@ function Screen({ route, hash, session }) {
     const haulId = new URLSearchParams(hash.split('?')[1] || '').get('id');
     return <ReviewHaul haulId={haulId} session={session} />;
   }
+  if (route === '#activity') return <Activity />;
 
   // Remaining screens wired up in Steps 11–15
   return (

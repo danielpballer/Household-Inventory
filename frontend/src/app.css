@@ -415,6 +415,50 @@ body {
   font-size: 0.9rem;
 }
 
+/* Activity Feed */
+.activity {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.activity-list {
+  list-style: none;
+  padding: 0 1rem;
+}
+
+.activity-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.activity-main {
+  display: flex;
+  gap: 0.35rem;
+  flex: 1;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+}
+
+.activity-who {
+  font-weight: 600;
+  color: #111827;
+}
+
+.activity-desc {
+  color: #374151;
+}
+
+.activity-time {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
 /* Add Haul screen */
 .add-haul {
   display: flex;
