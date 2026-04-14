@@ -443,6 +443,9 @@ async function callAnthropic(photos, env) {
     items = [];
   }
 
+  // Post-process: strip brand names and "Organic" regardless of model output
+  items = items.map((item) => ({ ...item, name: normalizeItemName(item.name) }));
+
   return {
     items,
     usage: {
@@ -450,4 +453,57 @@ async function callAnthropic(photos, env) {
       outputTokens: data.usage?.output_tokens ?? 0,
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Item name normalization
+// Strips leading brand names and "Organic" so items sort alphabetically
+// by the actual product name regardless of what the model outputs.
+// ---------------------------------------------------------------------------
+
+const BRAND_PREFIXES = [
+  'Kirkland Signature', 'Kirkland',
+  'Vital Farms',
+  'Creminelli',
+  'King Arthur',
+  "Driscoll's", 'Driscolls',
+  "Asmar's", 'Asmar',
+  '365 Whole Foods Market', '365 Whole Foods', '365WFM', '365',
+  'Reynolds',
+  "Hershey's", 'Hersheys',
+  'Ziploc',
+  "That's It",
+  'Sunset',
+  'Trickling Springs',
+  'Chosen Foods',
+  'Grapevine',
+  'Liberty',
+];
+
+// Build a single regex from the brand list (longest first to avoid partial matches)
+const BRAND_RE = new RegExp(
+  '^(' +
+    BRAND_PREFIXES
+      .slice()
+      .sort((a, b) => b.length - a.length)
+      .map((b) => b.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .join('|') +
+    ')\\s+',
+  'i',
+);
+
+function normalizeItemName(name) {
+  if (!name) return name;
+  let n = name.trim();
+
+  // Strip leading brand (may appear more than once, e.g. "Kirkland Organic ...")
+  n = n.replace(BRAND_RE, '').trim();
+
+  // Strip leading "Organic" (word-boundary match so "Original" is safe)
+  n = n.replace(/^Organic\s+/i, '').trim();
+
+  // Capitalize first letter in case stripping left a lowercase word
+  if (n.length > 0) n = n[0].toUpperCase() + n.slice(1);
+
+  return n;
 }
