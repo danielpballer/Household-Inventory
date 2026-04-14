@@ -464,3 +464,89 @@ body {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* Hauls Inbox */
+.inbox {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.haul-list {
+  list-style: none;
+  padding: 0 1rem;
+}
+
+.haul-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.haul-row--committed {
+  opacity: 0.5;
+}
+
+.haul-row-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.haul-row-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.haul-source {
+  font-size: 0.95rem;
+  color: #111827;
+  font-weight: 500;
+}
+
+.haul-time {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.haul-badge {
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.haul-badge--ready {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.haul-badge--parsing {
+  background: #fef9c3;
+  color: #92400e;
+}
+
+.haul-badge--failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.haul-badge--committed {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.spinner--sm {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-width: 2px;
+}

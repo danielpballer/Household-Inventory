@@ -4,6 +4,7 @@ import { SignIn } from './screens/SignIn.jsx';
 import { Inventory } from './screens/Inventory.jsx';
 import { AddItem } from './screens/AddItem.jsx';
 import { AddHaul } from './screens/AddHaul.jsx';
+import { HaulsInbox } from './screens/HaulsInbox.jsx';
 
 function getHash() {
   return window.location.hash || '#inventory';
@@ -70,7 +71,8 @@ export function App() {
 function Screen({ route, session }) {
   if (route === '#inventory') return <Inventory session={session} />;
   if (route === '#add-item')  return <AddItem session={session} />;
-  if (route === '#add-haul')  return <AddHaul session={session} />;
+  if (route === '#add-haul')    return <AddHaul session={session} />;
+  if (route === '#hauls-inbox') return <HaulsInbox />;
 
   // Remaining screens wired up in Steps 11–15
   return (
