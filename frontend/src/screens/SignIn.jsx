@@ -17,7 +17,7 @@ export function SignIn() {
       options: {
         // Redirect back to wherever the app is running (localhost in dev,
         // GitHub Pages URL in prod). Must be in Supabase's allowed redirect URLs.
-        redirectTo: window.location.origin,
+        redirectTo: window.location.origin + window.location.pathname,
       },
     });
 
