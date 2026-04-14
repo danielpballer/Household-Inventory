@@ -49,12 +49,12 @@ export function Inventory({ session }) {
     load();
   }, []);
 
-  async function decrement(item) {
+  async function updateQuantity(item, delta) {
     if (!online) return;
 
-    const newQty = Math.max(0, item.quantity - 1);
+    const newQty = Math.max(0, item.quantity + delta);
 
-    // Optimistic update — update UI immediately before the network call
+    // Optimistic update
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, quantity: newQty } : i)));
 
     const { error } = await supabase
@@ -63,23 +63,21 @@ export function Inventory({ session }) {
       .eq('id', item.id);
 
     if (error) {
-      // Revert optimistic update on failure
+      // Revert on failure
       setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
-      console.error('Decrement failed:', error.message);
+      console.error('Update failed:', error.message);
       return;
     }
 
-    // Log the activity
     await supabase.from('activity_log').insert({
       household_id: item.household_id,
       item_id: item.id,
       item_name_snapshot: item.name,
       user_id: session.user.id,
-      action: 'decremented',
-      quantity_delta: -1,
+      action: delta < 0 ? 'decremented' : 'edited',
+      quantity_delta: delta,
     });
 
-    // Update IndexedDB cache with the new quantity
     setItems((prev) => {
       const updated = prev.map((i) => (i.id === item.id ? { ...i, quantity: newQty } : i));
       setInventory(updated);
@@ -156,17 +154,26 @@ export function Inventory({ session }) {
                   )}
                 </div>
                 <div class="item-controls">
-                  <span class={`item-qty ${item.quantity <= 2 ? 'low' : ''}`}>
-                    {item.quantity}
-                  </span>
                   <button
                     class="decrement-btn"
-                    onClick={() => decrement(item)}
+                    onClick={() => updateQuantity(item, -1)}
                     disabled={!online || item.quantity === 0}
                     title={!online ? 'Offline — changes disabled' : '−1'}
                     aria-label={`Decrease ${item.name}`}
                   >
                     −
+                  </button>
+                  <span class={`item-qty ${item.quantity <= 2 ? 'low' : ''}`}>
+                    {item.quantity}
+                  </span>
+                  <button
+                    class="decrement-btn"
+                    onClick={() => updateQuantity(item, 1)}
+                    disabled={!online}
+                    title={!online ? 'Offline — changes disabled' : '+1'}
+                    aria-label={`Increase ${item.name}`}
+                  >
+                    +
                   </button>
                 </div>
               </div>
