@@ -1,20 +1,21 @@
 /**
  * JWT verification and email allowlist check.
  *
- * Supabase issues HS256 JWTs signed with the project's JWT secret.
- * Cloudflare Workers expose the Web Crypto API (crypto.subtle), so
- * we can verify signatures without any external library.
+ * Supabase issues ES256 JWTs (ECDSA P-256) signed with a private key.
+ * The corresponding public keys are published at:
+ *   {SUPABASE_URL}/auth/v1/.well-known/jwks.json
  *
- * Usage:
- *   const auth = await requireAuth(request, env);
- *   if (auth.error) return auth.error;   // Returns a 401 Response
- *   const { user } = auth;               // { id, email }
+ * We fetch those keys once and cache them in memory for the lifetime of
+ * this Worker instance. Verification uses the Web Crypto API — no library needed.
  */
 
 const ALLOWED_EMAILS = [
   'danballer13@gmail.com',
   'danabbyballer@gmail.com',
 ];
+
+// Module-level cache — Workers reuse instances across requests
+let cachedKeys = null;
 
 /**
  * Verifies the Bearer JWT in the Authorization header.
@@ -30,7 +31,7 @@ export async function requireAuth(request, env) {
 
   let payload;
   try {
-    payload = await verifyJWT(token, env.SUPABASE_JWT_SECRET);
+    payload = await verifyJWT(token, env.SUPABASE_URL);
   } catch (err) {
     return { error: unauthorized(err.message) };
   }
@@ -54,17 +55,44 @@ function unauthorized(message) {
 }
 
 /**
- * Verifies an HS256 JWT using the Web Crypto API.
- * Throws on invalid format, expired token, or bad signature.
+ * Fetches and caches Supabase's JWKS public keys.
+ * Tries all keys when verifying — handles key rotation gracefully.
+ */
+async function getPublicKeys(supabaseUrl) {
+  if (cachedKeys) return cachedKeys;
+
+  const res = await fetch(`${supabaseUrl}/auth/v1/.well-known/jwks.json`);
+  if (!res.ok) throw new Error('Failed to fetch JWKS');
+
+  const { keys } = await res.json();
+
+  cachedKeys = await Promise.all(
+    keys.map((jwk) =>
+      crypto.subtle.importKey(
+        'jwk',
+        jwk,
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        false,
+        ['verify'],
+      )
+    )
+  );
+
+  return cachedKeys;
+}
+
+/**
+ * Verifies an ES256 JWT using Supabase's published public keys.
+ * Throws on malformed token, expiry, or invalid signature.
  * Returns the decoded payload on success.
  */
-async function verifyJWT(token, secret) {
+async function verifyJWT(token, supabaseUrl) {
   const parts = token.split('.');
   if (parts.length !== 3) throw new Error('Malformed JWT');
 
   const [headerB64, payloadB64, signatureB64] = parts;
 
-  // Decode and parse payload (base64url → JSON)
+  // Decode and parse payload
   const payload = JSON.parse(base64urlToString(payloadB64));
 
   // Check expiry before the more expensive signature verification
@@ -72,23 +100,24 @@ async function verifyJWT(token, secret) {
     throw new Error('JWT expired');
   }
 
-  // Verify HMAC-SHA256 signature
   const encoder = new TextEncoder();
   const signingInput = encoder.encode(`${headerB64}.${payloadB64}`);
   const signatureBytes = base64urlToBytes(signatureB64);
 
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['verify'],
-  );
+  const keys = await getPublicKeys(supabaseUrl);
 
-  const valid = await crypto.subtle.verify('HMAC', key, signatureBytes, signingInput);
-  if (!valid) throw new Error('Invalid JWT signature');
+  // Try each key — supports key rotation
+  for (const key of keys) {
+    const valid = await crypto.subtle.verify(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      key,
+      signatureBytes,
+      signingInput,
+    );
+    if (valid) return payload;
+  }
 
-  return payload;
+  throw new Error('Invalid JWT signature');
 }
 
 /** Decodes a base64url string to a plain string (for JSON payloads). */
