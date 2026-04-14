@@ -18,8 +18,8 @@ export function SignIn() {
         // Redirect back to wherever the app is running (localhost in dev,
         // GitHub Pages URL in prod). Must be in Supabase's allowed redirect URLs.
         redirectTo: window.location.hostname.includes('github.io')
-              ? 'https://danielpballer.github.io/Household-Inventory'
-              : window.location.origin,
+              ? 'https://danielpballer.github.io/Household-Inventory/'
+              : `${window.location.origin}/`,
       },
     });
 
