@@ -1,6 +1,96 @@
-import { useState, useEffect, useCallback } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import { supabase } from '../db.js';
 import { getInventory, setInventory } from '../offline.js';
+
+// Extracted so each row has its own ref to the name input.
+// The input is always in the DOM (just readOnly when not editing) so we can
+// call focus() synchronously inside the pencil-button click handler — the
+// only way to reliably open the mobile keyboard without a user re-tap.
+function ItemRow({ item, isEditing, editingName, setEditingName, onStartEdit, onCancelEdit, onSaveEdit, onUpdateQuantity, onDeleteItem, online }) {
+  const nameRef = useRef(null);
+
+  function handleEditClick() {
+    if (nameRef.current) {
+      // Remove readOnly and focus synchronously — still inside the tap gesture.
+      nameRef.current.readOnly = false;
+      nameRef.current.focus();
+      nameRef.current.select();
+    }
+    onStartEdit(item);
+  }
+
+  return (
+    <div class="item-row">
+      <div class="item-info">
+        <div class="item-name-row">
+          <input
+            ref={nameRef}
+            type="text"
+            class={`item-name-input ${isEditing ? '' : 'item-name-readonly'}`}
+            value={isEditing ? editingName : item.name}
+            readOnly={!isEditing}
+            onInput={(e) => isEditing && setEditingName(e.target.value)}
+            onKeyDown={(e) => {
+              if (!isEditing) return;
+              if (e.key === 'Enter') onSaveEdit(item);
+              if (e.key === 'Escape') onCancelEdit();
+            }}
+            onBlur={() => isEditing && onSaveEdit(item)}
+          />
+          {online && (
+            <button
+              class="edit-name-btn"
+              onClick={handleEditClick}
+              aria-label={`Edit ${item.name}`}
+              title="Edit name"
+            >
+              ✎
+            </button>
+          )}
+        </div>
+        {item.last_purchased_at && (
+          <span class="item-date">
+            Last bought: {new Date(item.last_purchased_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </span>
+        )}
+      </div>
+      <div class="item-controls">
+        {item.quantity === 0 && online ? (
+          <button
+            class="delete-item-btn"
+            onClick={() => onDeleteItem(item)}
+            aria-label={`Delete ${item.name}`}
+            title="Remove from inventory"
+          >
+            🗑
+          </button>
+        ) : (
+          <button
+            class="decrement-btn"
+            onClick={() => onUpdateQuantity(item, -1)}
+            disabled={!online || item.quantity === 0}
+            title={!online ? 'Offline — changes disabled' : '−1'}
+            aria-label={`Decrease ${item.name}`}
+          >
+            −
+          </button>
+        )}
+        <span class={`item-qty ${item.quantity <= 2 ? 'low' : ''}`}>
+          {item.quantity}
+        </span>
+        <button
+          class="decrement-btn"
+          onClick={() => onUpdateQuantity(item, 1)}
+          disabled={!online}
+          title={!online ? 'Offline — changes disabled' : '+1'}
+          aria-label={`Increase ${item.name}`}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function Inventory({ session }) {
   const [items, setItems] = useState([]);
@@ -10,15 +100,6 @@ export function Inventory({ session }) {
   const [online, setOnline] = useState(navigator.onLine);
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
-
-  // Callback ref fires synchronously on mount — keeps us inside the tap gesture
-  // so the mobile keyboard opens automatically.
-  const editInputRef = useCallback((node) => {
-    if (node) {
-      node.focus();
-      node.select();
-    }
-  }, []);
 
   useEffect(() => {
     const onOnline = () => setOnline(true);
@@ -129,14 +210,11 @@ export function Inventory({ session }) {
       return;
     }
 
-    // Check if another item with the new name already exists
     const duplicate = items.find(
       (i) => i.id !== item.id && i.name.toLowerCase() === newName.toLowerCase()
     );
 
     if (duplicate) {
-      // Merge: sum quantities into the duplicate, delete the current item.
-      // Keep the more recent last_purchased_at of the two.
       const mergedQty = duplicate.quantity + item.quantity;
       const aDate = item.last_purchased_at ? new Date(item.last_purchased_at) : null;
       const bDate = duplicate.last_purchased_at ? new Date(duplicate.last_purchased_at) : null;
@@ -175,7 +253,6 @@ export function Inventory({ session }) {
         return updated;
       });
     } else {
-      // Simple rename
       const { error } = await supabase
         .from('items')
         .update({ name: newName })
@@ -265,77 +342,19 @@ export function Inventory({ session }) {
           <div key={category} class="category-group">
             <h3 class="category-heading">{category}</h3>
             {grouped[category].map((item) => (
-              <div key={item.id} class="item-row">
-                <div class="item-info">
-                  {editingId === item.id ? (
-                    <input
-                      ref={editInputRef}
-                      type="text"
-                      class="item-name-input"
-                      value={editingName}
-                      onInput={(e) => setEditingName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveEdit(item);
-                        if (e.key === 'Escape') cancelEdit();
-                      }}
-                      onBlur={() => saveEdit(item)}
-                    />
-                  ) : (
-                    <div class="item-name-row">
-                      <span class="item-name">{item.name}</span>
-                      {online && (
-                        <button
-                          class="edit-name-btn"
-                          onClick={() => startEdit(item)}
-                          aria-label={`Edit ${item.name}`}
-                          title="Edit name"
-                        >
-                          ✎
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {item.last_purchased_at && (
-                    <span class="item-date">
-                      Last bought: {new Date(item.last_purchased_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </span>
-                  )}
-                </div>
-                <div class="item-controls">
-                  {item.quantity === 0 && online ? (
-                    <button
-                      class="delete-item-btn"
-                      onClick={() => deleteItem(item)}
-                      aria-label={`Delete ${item.name}`}
-                      title="Remove from inventory"
-                    >
-                      🗑
-                    </button>
-                  ) : (
-                    <button
-                      class="decrement-btn"
-                      onClick={() => updateQuantity(item, -1)}
-                      disabled={!online || item.quantity === 0}
-                      title={!online ? 'Offline — changes disabled' : '−1'}
-                      aria-label={`Decrease ${item.name}`}
-                    >
-                      −
-                    </button>
-                  )}
-                  <span class={`item-qty ${item.quantity <= 2 ? 'low' : ''}`}>
-                    {item.quantity}
-                  </span>
-                  <button
-                    class="decrement-btn"
-                    onClick={() => updateQuantity(item, 1)}
-                    disabled={!online}
-                    title={!online ? 'Offline — changes disabled' : '+1'}
-                    aria-label={`Increase ${item.name}`}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
+              <ItemRow
+                key={item.id}
+                item={item}
+                isEditing={editingId === item.id}
+                editingName={editingName}
+                setEditingName={setEditingName}
+                onStartEdit={startEdit}
+                onCancelEdit={cancelEdit}
+                onSaveEdit={saveEdit}
+                onUpdateQuantity={updateQuantity}
+                onDeleteItem={deleteItem}
+                online={online}
+              />
             ))}
           </div>
         ))

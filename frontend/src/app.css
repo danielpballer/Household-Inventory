@@ -306,6 +306,14 @@ body {
   background: #fff;
 }
 
+.item-name-input.item-name-readonly {
+  border-color: transparent;
+  background: transparent;
+  padding-left: 0;
+  cursor: default;
+  pointer-events: none;
+}
+
 .item-controls {
   display: flex;
   align-items: center;
