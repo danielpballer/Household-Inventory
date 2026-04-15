@@ -26,8 +26,6 @@ export function App() {
     // React to sign-in, sign-out, and token refresh events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session ?? null);
-      // After clicking a magic link, Supabase puts tokens in the URL hash.
-      // Reset to #inventory so the router isn't confused by those tokens.
       if (event === 'SIGNED_IN') {
         window.location.hash = '#inventory';
       }
