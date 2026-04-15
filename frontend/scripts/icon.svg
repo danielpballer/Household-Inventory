@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Forest green background -->
+  <rect width="512" height="512" fill="#2d6a4f"/>
+
+  <!-- Can body -->
+  <rect x="148" y="140" width="216" height="252" fill="white"/>
+
+  <!-- Can top lid (two ellipses for depth) -->
+  <ellipse cx="256" cy="140" rx="108" ry="22" fill="#d4ead9"/>
+  <ellipse cx="256" cy="135" rx="108" ry="22" fill="white"/>
+
+  <!-- Can bottom cap -->
+  <ellipse cx="256" cy="392" rx="108" ry="22" fill="#b0d4bc"/>
+
+  <!-- Label stripe -->
+  <rect x="148" y="196" width="216" height="140" fill="#52b788"/>
+
+  <!-- Label border lines -->
+  <rect x="148" y="194" width="216" height="8" fill="#40916c"/>
+  <rect x="148" y="328" width="216" height="8" fill="#40916c"/>
+
+  <!-- Label content (stylised text lines) -->
+  <rect x="182" y="222" width="148" height="14" rx="7" fill="white"/>
+  <rect x="196" y="248" width="120" height="11" rx="5" fill="rgba(255,255,255,0.75)"/>
+  <rect x="188" y="272" width="136" height="11" rx="5" fill="rgba(255,255,255,0.55)"/>
+  <rect x="200" y="296" width="112" height="10" rx="5" fill="rgba(255,255,255,0.40)"/>
+</svg>
