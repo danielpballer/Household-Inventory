@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'preact/hooks';
+import { useState, useEffect, useCallback } from 'preact/hooks';
 import { supabase } from '../db.js';
 import { getInventory, setInventory } from '../offline.js';
 
@@ -10,7 +10,15 @@ export function Inventory({ session }) {
   const [online, setOnline] = useState(navigator.onLine);
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
-  const editInputRef = useRef(null);
+
+  // Callback ref fires synchronously on mount — keeps us inside the tap gesture
+  // so the mobile keyboard opens automatically.
+  const editInputRef = useCallback((node) => {
+    if (node) {
+      node.focus();
+      node.select();
+    }
+  }, []);
 
   useEffect(() => {
     const onOnline = () => setOnline(true);
@@ -46,14 +54,6 @@ export function Inventory({ session }) {
     }
     load();
   }, []);
-
-  // Focus the edit input whenever editingId changes
-  useEffect(() => {
-    if (editingId && editInputRef.current) {
-      editInputRef.current.focus();
-      editInputRef.current.select();
-    }
-  }, [editingId]);
 
   async function deleteItem(item) {
     if (!online) return;
