@@ -109,13 +109,23 @@ export function AddHaul({ session }) {
 
       {status === 'idle' && (
         <div class="haul-upload-area">
-          <p class="haul-hint">Take a photo of your receipt or select one from your camera roll.</p>
+          <p class="haul-hint">Photograph your receipt to add items to your inventory.</p>
           <label class="btn-primary haul-upload-btn">
-            📷 Choose Photo
+            📷 Take Photo
             <input
               type="file"
               accept="image/*"
               capture="environment"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+              disabled={!householdId}
+            />
+          </label>
+          <label class="btn-secondary haul-upload-btn">
+            🖼 Upload Photo
+            <input
+              type="file"
+              accept="image/*"
               style={{ display: 'none' }}
               onChange={handleFileChange}
               disabled={!householdId}
@@ -142,11 +152,21 @@ export function AddHaul({ session }) {
         <div class="haul-upload-area">
           <p class="form-error">{errorMsg}</p>
           <label class="btn-primary haul-upload-btn">
-            Try Again
+            📷 Take Photo
             <input
               type="file"
               accept="image/*"
               capture="environment"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+              disabled={!householdId}
+            />
+          </label>
+          <label class="btn-secondary haul-upload-btn">
+            🖼 Upload Photo
+            <input
+              type="file"
+              accept="image/*"
               style={{ display: 'none' }}
               onChange={handleFileChange}
               disabled={!householdId}
