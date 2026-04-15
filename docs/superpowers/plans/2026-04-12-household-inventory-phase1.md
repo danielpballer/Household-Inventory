@@ -504,7 +504,7 @@ No realtime subscription — loads on mount only (Phase 2 will add live updates)
 
 ---
 
-## Step 17: Deploy + mobile verification
+## Step 17: Deploy + mobile verification ✅
 
 **Files:** No new files — just testing.
 
@@ -512,7 +512,7 @@ No realtime subscription — loads on mount only (Phase 2 will add live updates)
 
 **Verification (on your actual phones):**
 - Open the GitHub Pages URL in Chrome on Android or Safari on iOS
-- Sign in via magic link
+- Sign in with email + password
 - On Android/Chrome: browser prompts "Add to Home Screen" or use browser menu
 - On iOS/Safari: Share → "Add to Home Screen"
 - Verify the app icon appears on the home screen
@@ -522,10 +522,10 @@ No realtime subscription — loads on mount only (Phase 2 will add live updates)
 
 ---
 
-## Open Questions Remaining
+## Open Questions — Resolved
 
-1. **Receipt parsing prompt:** Need few-shot examples from Whole Foods, Costco, Trader Joe's before Step 7. Dan to gather 2–3 real receipts.
-2. **Bucket policies for Supabase Storage:** The `haul-photos` bucket needs a Storage policy allowing authenticated users to upload to their own path (`{userId}/*`) and the Worker's service_role key to read any path. This gets defined alongside the schema in Step 2 but needs to be confirmed when the bucket is created.
+1. **Receipt parsing prompt:** Resolved during Step 7. Few-shot examples written from real receipts; post-processing normalizer added to Worker to strip brand prefixes and "Organic" prefix.
+2. **Bucket policies for Supabase Storage:** Confirmed working — authenticated users can upload to their own `{userId}/*` path; Worker service_role key reads any path.
 
 ---
 
@@ -538,3 +538,50 @@ No realtime subscription — loads on mount only (Phase 2 will add live updates)
 - Realtime sync between phones
 - Prompt caching for /parse-haul
 - Usage/analytics screens beyond the basic Settings page
+
+---
+
+## Changes Made During Build
+
+These are deviations from the original plan that reflect what was actually built.
+
+### Authentication (Step 9) — Magic link replaced with email/password
+**Original plan:** `signInWithOtp` magic link with `redirectTo` pointing back to the app.
+**What happened:** Supabase magic link redirects don't work reliably for GitHub Pages project sub-paths (`/Household-Inventory/`). The redirect consistently landed at the root domain. After exhausting URL configuration options, switched to `signInWithPassword`. Public signups are disabled in Supabase; accounts created manually via the dashboard (SQL: `UPDATE auth.users SET encrypted_password = crypt('password', gen_salt('bf')) WHERE email = '...'`).
+
+### JWT verification (Step 5) — ES256 via JWKS, not HS256
+**Original plan:** Verify JWT using `SUPABASE_JWT_SECRET` (HS256).
+**What happened:** Supabase projects use ES256. The Worker was rewritten to fetch the public key from `{SUPABASE_URL}/auth/v1/.well-known/jwks.json` and verify using `crypto.subtle.verify` with ECDSA/SHA-256. Keys are cached at module level.
+
+### RLS policy (Step 2) — household_members simplified
+**Original plan:** `household_id IN (SELECT household_id FROM household_members WHERE user_id = auth.uid())`.
+**What happened:** This caused infinite recursion (`42P17`) on `household_members` itself (the policy queries the same table it protects). Fixed by changing the `household_members` policy to `USING (user_id = auth.uid())` directly.
+
+### Inventory screen (Step 10) — Additional features added
+Beyond the original plan:
+- **Increment (+1) button** alongside the decrement button
+- **Inline name editing** — pencil (✎) button; Enter to save, Escape to cancel, blur saves
+- **Duplicate merge on rename** — if the new name matches an existing item, quantities are summed and the most recent `last_purchased_at` is kept
+- **Delete button (🗑)** replaces the decrement button when quantity = 0
+- **`last_purchased_at` display** — "Last bought: Apr 10" shown under item name; set on every add/increment
+
+### Review Haul (Step 14) — "Add missing item" button
+Added a "+ Add missing item" button that appends a blank editable row to the parsed items list, so items that weren't recognised in the receipt photo can be added before committing.
+
+### Receipt parsing (Step 7) — Brand/Organic normalisation
+Added post-processing `normalizeItemName()` function in the Worker that strips known brand prefixes (Kirkland, Vital Farms, 365 Whole Foods Market, etc.) and a leading "Organic" word from parsed item names. Also updated the few-shot prompt rules to instruct the model to use generic names. Both layers together produce consistently clean names.
+
+### Add Haul (Step 12) — Two upload buttons
+Added separate "Take Photo" (`capture="environment"`, opens camera) and "Upload Photo" (no `capture`, opens file picker) buttons. Both use the same upload handler.
+
+### NavBar — Inlined into app.jsx
+**Original plan:** `frontend/src/components/NavBar.jsx` as a separate component.
+**What happened:** Nav bar rendered inline in `app.jsx`. The `components/` directory was not created.
+
+### PWA icons — Designed pantry can icon
+**Original plan:** Placeholder icons.
+**What happened:** Designed a custom SVG icon (green background, white labelled can matching `#2d6a4f` theme colour). SVG source kept at `frontend/scripts/icon.svg`; PNGs generated via `sharp` script at `frontend/scripts/gen-icons.mjs`.
+
+### PWA manifest and HTML paths — Relative paths required
+**Original plan:** Absolute paths (`/icons/icon-192.png`, `start_url: "/"`).
+**What happened:** Absolute paths resolve to the GitHub Pages root (`danielpballer.github.io/`) rather than the app sub-path. All paths changed to relative (`./`) in `manifest.json` and `index.html`. SW registration changed to `import.meta.env.BASE_URL + 'sw.js'`.
