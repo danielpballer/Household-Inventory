@@ -26,7 +26,7 @@ function ItemRow({ item, isEditing, editingName, setEditingName, onStartEdit, on
           <input
             ref={nameRef}
             type="text"
-            class={`item-name-input ${isEditing ? '' : 'item-name-readonly'}`}
+            class={`item-name-input ${isEditing ? '' : 'item-name-offscreen'}`}
             value={isEditing ? editingName : item.name}
             readOnly={!isEditing}
             onInput={(e) => isEditing && setEditingName(e.target.value)}
@@ -37,6 +37,7 @@ function ItemRow({ item, isEditing, editingName, setEditingName, onStartEdit, on
             }}
             onBlur={() => isEditing && onSaveEdit(item)}
           />
+          {!isEditing && <span class="item-name-display">{item.name}</span>}
           {online && (
             <button
               class="edit-name-btn"

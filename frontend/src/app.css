@@ -441,7 +441,7 @@ body {
 
 .item-name-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 2px;
 }
 
@@ -458,12 +458,26 @@ body {
   line-height: 1.4;
 }
 
-.item-name-input.item-name-readonly {
-  border-color: transparent;
-  background: transparent;
-  padding-left: 0;
-  cursor: default;
-  pointer-events: none;
+.item-name-input.item-name-offscreen {
+  /* Off-screen but not display:none — iOS requires the element to be focusable
+     so the keyboard opens synchronously when the pencil button is tapped. */
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.item-name-display {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1.4;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  padding-top: 2px;
 }
 
 .item-date {
