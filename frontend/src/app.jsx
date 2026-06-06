@@ -111,11 +111,11 @@ function Screen({ route, hash, session }) {
   // Remaining screens wired up in Steps 11–15
   return (
     <div style={{ padding: '1.5rem' }}>
-      <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>
+      <p style={{ color: 'var(--ink-2)', fontSize: '0.9rem' }}>
         Screen <code>{route}</code> coming soon.
       </p>
       <button
-        style={{ marginTop: '2rem', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        style={{ marginTop: '2rem', color: 'var(--destructive)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         onClick={() => supabase.auth.signOut()}
       >
         Sign out
