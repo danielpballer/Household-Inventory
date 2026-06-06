@@ -333,7 +333,8 @@ export function Inventory({ session }) {
     lines.push(`Total: ${items.length} item${items.length !== 1 ? 's' : ''}`);
     const text = lines.join('\n').trim();
 
-    if (navigator.share) {
+    const isTouchDevice = navigator.maxTouchPoints > 0;
+    if (navigator.share && isTouchDevice) {
       try { await navigator.share({ text }); } catch { /* dismissed */ }
     } else {
       await navigator.clipboard.writeText(text);
