@@ -84,7 +84,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - **Frontend:** Preact PWA, built with Vite (no router library — hash-based routing in app.jsx). Service worker for offline caching of inventory list. IndexedDB mirror of inventory for instant load via `idb` library. Installable to home screen. SW registered using `import.meta.env.BASE_URL` so the path is correct for both local dev and GitHub Pages.
 - **Hosting (frontend):** GitHub Pages at `https://danielpballer.github.io/Household-Inventory/`. Built with `--base=/Household-Inventory/`. Manifest and HTML use relative paths (`./`) so the PWA install and icons work correctly under the sub-path.
 - **Backend:** Cloudflare Workers (one Worker, multiple routes). Holds the Anthropic API key. All vision API calls proxied through here.
-- **Database & Auth:** Supabase. Postgres + Supabase Auth (email/password) + Realtime subscriptions (Phase 2: live activity feed sync between Dan's and Abby's phones).
+- **Database & Auth:** Supabase. Postgres + Supabase Auth (email/password) + Realtime subscriptions on `items`, `activity_log`, and `pending_hauls` for live sync between Dan's and Abby's phones.
 - **Image storage:** Supabase Storage bucket `haul-photos` (private). Auto-delete after 30 days.
 
 ### Database Security (RLS)
@@ -113,7 +113,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 3. PWA creates a `pending_hauls` row with `status='parsing'`.
 3. PWA calls Cloudflare Worker `/parse-haul` with the haul ID and JWT.
 5. Worker verifies JWT (ES256, via JWKS endpoint at `{SUPABASE_URL}/auth/v1/.well-known/jwks.json`), checks email allowlist, checks daily spend cap and per-user rate limit.
-6. Worker fetches photo from Supabase Storage, calls Anthropic Haiku, normalises item names (strips brand prefixes and leading "Organic"), updates `pending_hauls` with `status='ready'` and `parsed_items`. Returns 200 to the PWA.
+6. Worker fetches photos from Supabase Storage, calls Anthropic (Haiku for receipts, Sonnet for counter photos), normalises item names (strips brand prefixes and leading "Organic"), updates `pending_hauls` with `status='ready'` and `parsed_items`. Returns 200 to the PWA.
 7. PWA receives the 200 response and navigates to the Pending Hauls inbox.
 
 ## Authentication & Authorization
@@ -148,7 +148,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 
 1. **Inventory (home screen)** — searchable list grouped by category. Each row: name (with ✎ edit button), last purchased date, quantity, −/+ buttons. Delete button (🗑) replaces − when quantity = 0. "Running Low" filter chip shows items at quantity ≤ 2. Tapping ✎ opens the keyboard immediately on mobile (input is always in the DOM, focused synchronously inside the tap gesture).
 2. **Activity Feed** — reverse-chronological list of recent adds/decrements/edits with user attribution.
-3. **Add Haul** — two buttons: "Take Photo" (opens camera) and "Upload Photo" (opens file picker). Receipt tab active; Counter Photos tab disabled (Phase 2). Upload progress and parse spinner shown inline.
+3. **Add Haul** — Receipt and Counter Photos tabs. Receipt tab: one photo, auto-submits on selection. Counter Photos tab: add up to 5 photos of shelves/fridge with previews, then tap "Analyze Pantry" to submit. Upload progress and parse spinner shown inline for both paths.
 4. **Pending Hauls Inbox** — list of hauls with status badges (Parsing / Ready to review / Failed / Committed) and relative timestamps.
 5. **Review Haul** — editable list of parsed items (name, category, quantity, delete). "+ Add missing item" button appends a blank row. "Commit" button merges into inventory.
 6. **Add Item** — manual add form (name, category, quantity). Checks for existing item by name (case-insensitive) and increments quantity rather than creating a duplicate.
