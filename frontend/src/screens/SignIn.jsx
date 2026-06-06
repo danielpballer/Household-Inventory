@@ -23,7 +23,11 @@ export function SignIn() {
   return (
     <div class="sign-in">
       <div class="sign-in-card">
-        <div class="sign-in-icon">🥫</div>
+        <div class="sign-in-icon" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/>
+          </svg>
+        </div>
         <h1>Pantry</h1>
         <p>Sign in to your household inventory.</p>
         <form onSubmit={handleSubmit}>
