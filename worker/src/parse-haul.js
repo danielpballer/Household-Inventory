@@ -27,7 +27,7 @@ Each element in the array:
 {"name": "Human-readable item name", "category": "Category", "quantity": integer, "confidence": "high|medium|low"}
 
 ## Categories (use exactly one of these values)
-Produce, Dairy, Pantry, Frozen, Meat, Beverages, Household, Other
+Produce, Dairy, Pantry, Frozen, Meat, Beverages, Household, Snacks, Other
 
 ## Rules
 1. SKIP these line types entirely: savings/discounts, tare weights, container deposits, subtotals, taxes, totals, payment info, loyalty program notes, store addresses, cashier names.
@@ -222,7 +222,7 @@ Each element:
 {"name": "Human-readable item name", "category": "Category", "quantity": integer, "confidence": "high|medium|low"}
 
 ## Categories (use exactly one)
-Produce, Dairy, Pantry, Frozen, Meat, Beverages, Household, Other
+Produce, Dairy, Pantry, Frozen, Meat, Beverages, Household, Snacks, Other
 
 ## Rules
 1. Count only what is clearly visible. Do not guess at items hidden behind others.

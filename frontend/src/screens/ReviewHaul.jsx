@@ -3,7 +3,7 @@ import { supabase } from '../db.js';
 
 const CATEGORIES = [
   'Beverages', 'Dairy', 'Frozen', 'Household',
-  'Meat', 'Other', 'Pantry', 'Produce',
+  'Meat', 'Other', 'Pantry', 'Produce', 'Snacks',
 ];
 
 export function ReviewHaul({ haulId, session }) {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'preact/hooks';
 import { supabase } from '../db.js';
 import { getInventory, setInventory } from '../offline.js';
 
-const CATEGORIES = ['Beverages', 'Dairy', 'Frozen', 'Household', 'Meat', 'Other', 'Pantry', 'Produce'];
+const CATEGORIES = ['Beverages', 'Dairy', 'Frozen', 'Household', 'Meat', 'Other', 'Pantry', 'Produce', 'Snacks'];
 
 // Extracted so each row has its own ref to the name input.
 // The input is always in the DOM (just readOnly when not editing) so we can

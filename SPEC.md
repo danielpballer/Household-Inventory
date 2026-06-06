@@ -47,7 +47,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - `id` (uuid, pk)
 - `household_id` (fk)
 - `name` (text) — e.g., "Chobani yogurt"
-- `category` (text) — Produce, Dairy, Pantry, Frozen, Meat, Beverages, Household, Other. Enforced via Postgres CHECK constraint.
+- `category` (text) — Produce, Dairy, Pantry, Frozen, Meat, Beverages, Household, Snacks, Other. Enforced via Postgres CHECK constraint.
 - `quantity` (integer, default 1)
 - `last_purchased_at` (timestamptz, nullable) — set on every insert or increment; displayed as "Last bought: Apr 10" on the inventory screen
 - `created_at`, `updated_at`
@@ -188,7 +188,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - **Authentication:** Changed from magic link to email/password. Magic link redirects don't work reliably on GitHub Pages sub-paths; email/password is simpler for a two-person private app.
 - **JWT algorithm:** Supabase uses ES256 (not HS256). Worker verifies using JWKS public key endpoint rather than the JWT secret.
 - **RLS household_members policy:** Uses `user_id = auth.uid()` directly to prevent infinite recursion (a subquery into the same table caused a `42P17` error).
-- **Category list:** Produce, Dairy, Pantry, Frozen, Meat, Beverages, Household, Other. "Freezer" removed as redundant with Frozen.
+- **Category list:** Produce, Dairy, Pantry, Frozen, Meat, Beverages, Household, Snacks, Other. "Freezer" removed as redundant with Frozen.
 - **Decrement to 0:** Items stay at quantity=0 with a delete button (🗑). Not auto-deleted.
 - **Haul commit behavior:** Matching items (same name, case-insensitive) are incremented, not overwritten.
 - **Inline merge:** Renaming an item to match an existing item merges them (summed quantity, most recent last_purchased_at kept).
