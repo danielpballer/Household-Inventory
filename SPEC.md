@@ -173,7 +173,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - "Mark out" decrement option
 - Running Low as a dedicated screen
 - Realtime sync between Dan's and Abby's phones
-- Prompt caching for the `/parse-haul` endpoint
+- Prompt caching for the `/parse-haul` endpoint ✅
 
 ### Phase 3 — Later (explicitly out of scope for v1)
 - "How long things last" analytics
