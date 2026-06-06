@@ -42,9 +42,24 @@ function describeAction(entry) {
   }
 }
 
-export function Activity() {
+export function Activity({ session }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('activity-sync')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, (payload) => {
+        const entry = {
+          ...payload.new,
+          user_email: payload.new.user_id === session.user.id ? session.user.email : null,
+        };
+        setEntries((prev) => [entry, ...prev]);
+      })
+      .subscribe();
+
+    return () => channel.unsubscribe();
+  }, []);
 
   useEffect(() => {
     async function load() {

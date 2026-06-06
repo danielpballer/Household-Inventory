@@ -30,6 +30,23 @@ export function HaulsInbox() {
     load();
   }, []);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel('hauls-sync')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pending_hauls' }, (payload) => {
+        setHauls((prev) => {
+          if (prev.some((h) => h.id === payload.new.id)) return prev;
+          return [payload.new, ...prev];
+        });
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pending_hauls' }, (payload) => {
+        setHauls((prev) => prev.map((h) => (h.id === payload.new.id ? payload.new : h)));
+      })
+      .subscribe();
+
+    return () => channel.unsubscribe();
+  }, []);
+
   if (loading) {
     return <div class="loading-screen">Loading…</div>;
   }

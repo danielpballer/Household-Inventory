@@ -136,6 +136,36 @@ export function Inventory({ session }) {
     load();
   }, []);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel('inventory-sync')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'items' }, (payload) => {
+        setItems((prev) => {
+          if (prev.some((i) => i.id === payload.new.id)) return prev;
+          const updated = [...prev, payload.new].sort((a, b) => a.name.localeCompare(b.name));
+          setInventory(updated);
+          return updated;
+        });
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'items' }, (payload) => {
+        setItems((prev) => {
+          const updated = prev.map((i) => (i.id === payload.new.id ? payload.new : i));
+          setInventory(updated);
+          return updated;
+        });
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'items' }, (payload) => {
+        setItems((prev) => {
+          const updated = prev.filter((i) => i.id !== payload.old.id);
+          setInventory(updated);
+          return updated;
+        });
+      })
+      .subscribe();
+
+    return () => channel.unsubscribe();
+  }, []);
+
   async function deleteItem(item) {
     if (!online) return;
 

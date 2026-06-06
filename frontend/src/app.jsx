@@ -77,7 +77,7 @@ function Screen({ route, hash, session }) {
     const haulId = new URLSearchParams(hash.split('?')[1] || '').get('id');
     return <ReviewHaul haulId={haulId} session={session} />;
   }
-  if (route === '#activity') return <Activity />;
+  if (route === '#activity') return <Activity session={session} />;
 
   // Remaining screens wired up in Steps 11–15
   return (
