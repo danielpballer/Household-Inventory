@@ -2,12 +2,15 @@ import { useState, useEffect, useRef } from 'preact/hooks';
 import { supabase } from '../db.js';
 import { getInventory, setInventory } from '../offline.js';
 
+const CATEGORIES = ['Beverages', 'Dairy', 'Frozen', 'Household', 'Meat', 'Other', 'Pantry', 'Produce'];
+
 // Extracted so each row has its own ref to the name input.
 // The input is always in the DOM (just readOnly when not editing) so we can
 // call focus() synchronously inside the pencil-button click handler — the
 // only way to reliably open the mobile keyboard without a user re-tap.
-function ItemRow({ item, isEditing, editingName, setEditingName, onStartEdit, onCancelEdit, onSaveEdit, onUpdateQuantity, onDeleteItem, online }) {
+function ItemRow({ item, isEditing, editingName, setEditingName, onStartEdit, onCancelEdit, onSaveEdit, onUpdateQuantity, onDeleteItem, onChangeCategory, online }) {
   const nameRef = useRef(null);
+  const [isCategoryEditing, setIsCategoryEditing] = useState(false);
 
   function handleEditClick() {
     if (nameRef.current) {
@@ -52,6 +55,25 @@ function ItemRow({ item, isEditing, editingName, setEditingName, onStartEdit, on
             </button>
           )}
         </div>
+        {isCategoryEditing ? (
+          <select
+            class="category-select-inline"
+            value={item.category}
+            autoFocus
+            onChange={(e) => { onChangeCategory(item, e.target.value); setIsCategoryEditing(false); }}
+            onBlur={() => setIsCategoryEditing(false)}
+          >
+            {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+          </select>
+        ) : (
+          <button
+            class="category-badge"
+            disabled={!online}
+            onClick={() => online && setIsCategoryEditing(true)}
+          >
+            {item.category}{online ? ' ▾' : ''}
+          </button>
+        )}
         {item.last_purchased_at && (
           <span class="item-date">
             Last bought: {new Date(item.last_purchased_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -320,6 +342,30 @@ export function Inventory({ session }) {
     cancelEdit();
   }
 
+  async function changeCategory(item, newCategory) {
+    if (!online || newCategory === item.category) return;
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, category: newCategory } : i)));
+    const { error } = await supabase.from('items').update({ category: newCategory }).eq('id', item.id);
+    if (error) {
+      setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
+      console.error('Category update failed:', error.message);
+      return;
+    }
+    await supabase.from('activity_log').insert({
+      household_id: item.household_id,
+      item_id: item.id,
+      item_name_snapshot: item.name,
+      user_id: session.user.id,
+      action: 'edited',
+      quantity_delta: 0,
+    });
+    setItems((prev) => {
+      const updated = prev.map((i) => (i.id === item.id ? { ...i, category: newCategory } : i));
+      setInventory(updated);
+      return updated;
+    });
+  }
+
   async function shareInventory() {
     const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     const allGrouped = {};
@@ -437,6 +483,7 @@ export function Inventory({ session }) {
                 onSaveEdit={saveEdit}
                 onUpdateQuantity={updateQuantity}
                 onDeleteItem={deleteItem}
+                onChangeCategory={changeCategory}
                 online={online}
               />
             ))}
