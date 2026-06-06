@@ -197,7 +197,9 @@ export function ReviewHaul({ haulId, session }) {
                       disabled={committing}
                       aria-label={`Remove ${row.name}`}
                     >
-                      🗑
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M2 4h12M5 4V2.5h6V4M3.5 4l1 10h7l1-10M6.5 7v4.5M9.5 7v4.5"/>
+                      </svg>
                     </button>
                   </div>
                 </div>
