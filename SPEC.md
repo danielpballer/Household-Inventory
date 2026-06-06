@@ -108,12 +108,13 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - The Anthropic API key has a hard monthly spend limit of $10 set in the Anthropic console.
 
 ### Request flow for a photo parse
-1. PWA uploads photo to Supabase Storage.
-2. PWA creates a `pending_hauls` row with `status='parsing'`.
+1. PWA compresses the photo to max 1800px on the longest side at JPEG quality 0.85 (keeps files well under Anthropic's 5MB image limit).
+2. PWA uploads the compressed JPEG to Supabase Storage.
+3. PWA creates a `pending_hauls` row with `status='parsing'`.
 3. PWA calls Cloudflare Worker `/parse-haul` with the haul ID and JWT.
-4. Worker verifies JWT (ES256, via JWKS endpoint at `{SUPABASE_URL}/auth/v1/.well-known/jwks.json`), checks email allowlist, checks daily spend cap and per-user rate limit.
-5. Worker fetches photo from Supabase Storage, calls Anthropic Haiku, normalises item names (strips brand prefixes and leading "Organic"), updates `pending_hauls` with `status='ready'` and `parsed_items`. Returns 200 to the PWA.
-6. PWA receives the 200 response and navigates to the Pending Hauls inbox.
+5. Worker verifies JWT (ES256, via JWKS endpoint at `{SUPABASE_URL}/auth/v1/.well-known/jwks.json`), checks email allowlist, checks daily spend cap and per-user rate limit.
+6. Worker fetches photo from Supabase Storage, calls Anthropic Haiku, normalises item names (strips brand prefixes and leading "Organic"), updates `pending_hauls` with `status='ready'` and `parsed_items`. Returns 200 to the PWA.
+7. PWA receives the 200 response and navigates to the Pending Hauls inbox.
 
 ## Authentication & Authorization
 
@@ -145,7 +146,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 
 ## Screens
 
-1. **Inventory (home screen)** — searchable list grouped by category. Each row: name (with ✎ edit button), last purchased date, quantity, −/+ buttons. Delete button (🗑) replaces − when quantity = 0. "Running Low" filter chip shows items at quantity ≤ 2.
+1. **Inventory (home screen)** — searchable list grouped by category. Each row: name (with ✎ edit button), last purchased date, quantity, −/+ buttons. Delete button (🗑) replaces − when quantity = 0. "Running Low" filter chip shows items at quantity ≤ 2. Tapping ✎ opens the keyboard immediately on mobile (input is always in the DOM, focused synchronously inside the tap gesture).
 2. **Activity Feed** — reverse-chronological list of recent adds/decrements/edits with user attribution.
 3. **Add Haul** — two buttons: "Take Photo" (opens camera) and "Upload Photo" (opens file picker). Receipt tab active; Counter Photos tab disabled (Phase 2). Upload progress and parse spinner shown inline.
 4. **Pending Hauls Inbox** — list of hauls with status badges (Parsing / Ready to review / Failed / Committed) and relative timestamps.
@@ -191,6 +192,8 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - **Haul commit behavior:** Matching items (same name, case-insensitive) are incremented, not overwritten.
 - **Inline merge:** Renaming an item to match an existing item merges them (summed quantity, most recent last_purchased_at kept).
 - **PWA paths:** `manifest.json` and `index.html` use relative paths (`./`) so start_url, icons, and the manifest link all resolve correctly under the `/Household-Inventory/` base path.
+- **Photo compression:** Mobile camera photos can exceed Anthropic's 5MB per-image limit. All photos are resized client-side (canvas API, max 1800px, JPEG 0.85) before upload. A 10MB phone photo typically compresses to under 1MB.
+- **Mobile keyboard on inline edit:** The item name input is always rendered in the DOM (styled as plain text when not editing) so `focus()` can be called synchronously inside the tap handler, which is required for iOS to open the keyboard without a second tap.
 
 ## Success Criteria
 - Abby uses it for 2 consecutive weeks without prompting.
