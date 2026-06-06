@@ -17,9 +17,6 @@ const RECEIPT_MODEL = 'claude-haiku-4-5-20251001';
 // Haiku pricing as of 2026-04
 const COST_PER_INPUT_TOKEN = 0.0000008; // $0.80 / 1M tokens
 const COST_PER_OUTPUT_TOKEN = 0.000004; // $4.00 / 1M tokens
-// Prompt caching prices are relative to input price
-const COST_PER_CACHE_WRITE_TOKEN = COST_PER_INPUT_TOKEN * 1.25; // 1.25× on first call
-const COST_PER_CACHE_READ_TOKEN = COST_PER_INPUT_TOKEN * 0.1;  // 0.1× on cache hits
 
 // ---------------------------------------------------------------------------
 // System prompt — few-shot examples built from real Whole Foods, Trader Joe's,
@@ -352,12 +349,8 @@ async function setHaulFailed(haulId, errorMessage, env) {
   );
 }
 
-async function recordUsage(userId, { inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens }, env) {
-  const cost =
-    inputTokens * COST_PER_INPUT_TOKEN +
-    outputTokens * COST_PER_OUTPUT_TOKEN +
-    cacheCreationTokens * COST_PER_CACHE_WRITE_TOKEN +
-    cacheReadTokens * COST_PER_CACHE_READ_TOKEN;
+async function recordUsage(userId, { inputTokens, outputTokens }, env) {
+  const cost = inputTokens * COST_PER_INPUT_TOKEN + outputTokens * COST_PER_OUTPUT_TOKEN;
   const today = new Date().toISOString().slice(0, 10);
   const baseHeaders = { ...supabaseHeaders(env), 'Content-Type': 'application/json' };
 
@@ -408,13 +401,12 @@ async function callAnthropic(photos, env) {
     headers: {
       'x-api-key': env.ANTHROPIC_API_KEY,
       'anthropic-version': '2023-06-01',
-      'anthropic-beta': 'prompt-caching-2024-07-31',
       'content-type': 'application/json',
     },
     body: JSON.stringify({
       model: RECEIPT_MODEL,
       max_tokens: 2048,
-      system: [{ type: 'text', text: RECEIPT_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+      system: RECEIPT_SYSTEM_PROMPT,
       messages: [
         {
           role: 'user',
@@ -459,8 +451,6 @@ async function callAnthropic(photos, env) {
     usage: {
       inputTokens: data.usage?.input_tokens ?? 0,
       outputTokens: data.usage?.output_tokens ?? 0,
-      cacheCreationTokens: data.usage?.cache_creation_input_tokens ?? 0,
-      cacheReadTokens: data.usage?.cache_read_input_tokens ?? 0,
     },
   };
 }

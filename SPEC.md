@@ -173,7 +173,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - "Mark out" decrement option
 - Running Low as a dedicated screen
 - Realtime sync between Dan's and Abby's phones
-- Prompt caching for the `/parse-haul` endpoint ✅
+- Prompt caching for the `/parse-haul` endpoint (investigated — not cost-effective at current usage volume; system prompt at ~2,300 tokens is below Haiku 4.5's 4,096-token minimum)
 
 ### Phase 3 — Later (explicitly out of scope for v1)
 - "How long things last" analytics
