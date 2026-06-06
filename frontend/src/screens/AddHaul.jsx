@@ -252,7 +252,11 @@ export function AddHaul({ session }) {
           {status === 'error' && <p class="form-error">{errorMsg}</p>}
           <p class="haul-hint">Photograph your receipt to add items to your inventory.</p>
           <label class="btn-primary haul-upload-btn">
-            📷 Take Photo
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M1.5 8a1.5 1.5 0 011.5-1.5h1.25L5.5 5h7l1.25 1.5H15a1.5 1.5 0 011.5 1.5v7A1.5 1.5 0 0115 15H3A1.5 1.5 0 011.5 13.5V8z"/>
+              <circle cx="9" cy="11" r="2.5"/>
+            </svg>
+            Take Photo
             <input
               type="file"
               accept="image/*"
@@ -263,7 +267,12 @@ export function AddHaul({ session }) {
             />
           </label>
           <label class="btn-secondary haul-upload-btn">
-            🖼 Upload Photo
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="1.5" y="2.5" width="15" height="13" rx="2"/>
+              <circle cx="6" cy="7" r="1.75"/>
+              <path d="M1.5 13l4-4.5 3.5 4 2.5-2.5 4.5 4.5"/>
+            </svg>
+            Upload Photo
             <input
               type="file"
               accept="image/*"
@@ -283,22 +292,13 @@ export function AddHaul({ session }) {
           </p>
 
           {previews.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', margin: '0.75rem 0' }}>
+            <div class="photo-previews">
               {previews.map((src, i) => (
-                <div key={i} style={{ position: 'relative' }}>
-                  <img
-                    src={src}
-                    alt={`Photo ${i + 1}`}
-                    style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '6px' }}
-                  />
+                <div key={i} class="photo-preview">
+                  <img src={src} alt={`Photo ${i + 1}`} />
                   <button
+                    class="photo-remove-btn"
                     onClick={() => removePhoto(i)}
-                    style={{
-                      position: 'absolute', top: '-6px', right: '-6px',
-                      width: '20px', height: '20px', borderRadius: '50%',
-                      background: '#dc2626', color: '#fff', border: 'none',
-                      fontSize: '12px', lineHeight: '20px', cursor: 'pointer', padding: 0,
-                    }}
                     aria-label={`Remove photo ${i + 1}`}
                   >
                     ×
@@ -311,7 +311,11 @@ export function AddHaul({ session }) {
           {pendingPhotos.length < 5 && (
             <>
               <label class="btn-primary haul-upload-btn">
-                📷 Take Photo
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M1.5 8a1.5 1.5 0 011.5-1.5h1.25L5.5 5h7l1.25 1.5H15a1.5 1.5 0 011.5 1.5v7A1.5 1.5 0 0115 15H3A1.5 1.5 0 011.5 13.5V8z"/>
+                  <circle cx="9" cy="11" r="2.5"/>
+                </svg>
+                Take Photo
                 <input
                   type="file"
                   accept="image/*"
@@ -322,7 +326,12 @@ export function AddHaul({ session }) {
                 />
               </label>
               <label class="btn-secondary haul-upload-btn">
-                🖼 Upload Photo
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="1.5" y="2.5" width="15" height="13" rx="2"/>
+                  <circle cx="6" cy="7" r="1.75"/>
+                  <path d="M1.5 13l4-4.5 3.5 4 2.5-2.5 4.5 4.5"/>
+                </svg>
+                Upload Photo
                 <input
                   type="file"
                   accept="image/*"
