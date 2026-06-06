@@ -58,11 +58,40 @@ export function App() {
         <Screen route={route} hash={hash} session={session} />
       </main>
       <nav class="nav-bar">
-        <a href="#inventory"   class={route === '#inventory'    ? 'active' : ''}>Inventory</a>
-        <a href="#add-item"    class={route === '#add-item'     ? 'active' : ''}>+ Item</a>
-        <a href="#add-haul"    class={route === '#add-haul'     ? 'active' : ''}>+ Haul</a>
-        <a href="#hauls-inbox" class={route === '#hauls-inbox'  ? 'active' : ''}>Inbox</a>
-        <a href="#activity"    class={route === '#activity'     ? 'active' : ''}>Activity</a>
+        <a href="#inventory" class={route === '#inventory' ? 'active' : ''}>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+            <path d="M3 6h14M3 10h14M3 14h14"/>
+          </svg>
+          <span>Inventory</span>
+        </a>
+        <a href="#add-item" class={route === '#add-item' ? 'active' : ''}>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+            <circle cx="10" cy="10" r="7"/>
+            <path d="M10 7v6M7 10h6"/>
+          </svg>
+          <span>+ Item</span>
+        </a>
+        <a href="#add-haul" class={route === '#add-haul' ? 'active' : ''}>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2 9a1 1 0 011-1h1.5l.75-1.5h9.5L15.5 8H17a1 1 0 011 1v7a1 1 0 01-1 1H3a1 1 0 01-1-1V9z"/>
+            <circle cx="10" cy="12" r="2.5"/>
+          </svg>
+          <span>+ Haul</span>
+        </a>
+        <a href="#hauls-inbox" class={route === '#hauls-inbox' ? 'active' : ''}>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2" y="3" width="16" height="14" rx="1.5"/>
+            <path d="M2 13h4l1.5 3h5l1.5-3h4"/>
+          </svg>
+          <span>Inbox</span>
+        </a>
+        <a href="#activity" class={route === '#activity' ? 'active' : ''}>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+            <circle cx="10" cy="10" r="7.5"/>
+            <path d="M10 6.5V10.5L13 13"/>
+          </svg>
+          <span>Activity</span>
+        </a>
       </nav>
     </div>
   );
