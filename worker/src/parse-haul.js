@@ -6,17 +6,12 @@
  *   2. Fetch pending_hauls row and verify household membership (IDOR guard)
  *   3. Check status == 'parsing' (idempotency guard)
  *   4. Download photos from Supabase Storage using service_role key
- *   5. Call Anthropic Haiku with few-shot receipt parsing prompt
+ *   5. Call Anthropic (Haiku for receipts, Sonnet for counter photos)
  *   6. Update pending_hauls to status='ready' with parsed_items
  *   7. Record usage in usage_meter
  */
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const RECEIPT_MODEL = 'claude-haiku-4-5-20251001';
-
-// Haiku pricing as of 2026-04
-const COST_PER_INPUT_TOKEN = 0.0000008; // $0.80 / 1M tokens
-const COST_PER_OUTPUT_TOKEN = 0.000004; // $4.00 / 1M tokens
 
 // ---------------------------------------------------------------------------
 // System prompt — few-shot examples built from real Whole Foods, Trader Joe's,
@@ -215,6 +210,60 @@ Output:
 ]`;
 
 // ---------------------------------------------------------------------------
+// Counter photo system prompt — visual shelf/pantry scan via Sonnet.
+// ---------------------------------------------------------------------------
+const COUNTER_SYSTEM_PROMPT = `You are a pantry and refrigerator inventory assistant for a household app.
+
+## Task
+Examine the photo(s) of pantry shelves, a refrigerator, or kitchen cabinets. Identify and count the consumable household items you can see. Return ONLY a valid JSON array — no explanation, no markdown code fences, no other text.
+
+## Output format
+Each element:
+{"name": "Human-readable item name", "category": "Category", "quantity": integer, "confidence": "high|medium|low"}
+
+## Categories (use exactly one)
+Produce, Dairy, Pantry, Frozen, Meat, Beverages, Household, Other
+
+## Rules
+1. Count only what is clearly visible. Do not guess at items hidden behind others.
+2. If the same item appears multiple times (e.g., 3 cans of chickpeas), return ONE entry with the correct quantity — not multiple entries.
+3. Use generic names: "Pasta" not "Barilla Penne". Keep the brand only when the product is unrecognizable without it (e.g., "Nutella", "Sriracha", "Tahini", "Miso Paste").
+4. Drop "Organic" from all item names.
+5. Skip non-consumable items (containers, appliances, utensils) unless they are clearly household consumables like dish soap, paper towels, or laundry detergent — those go in category Household.
+6. Skip items that are too blurry or obscured to identify.
+7. Confidence: high = label clearly readable, medium = recognizable from shape/color/partial label, low = best guess from minimal visual cues.
+
+## Example
+
+Photo shows: 2 cans of black beans, 1 can of diced tomatoes, a box of pasta, 3 boxes of chicken broth, a bottle of olive oil with a partially visible label.
+
+Output:
+[
+  {"name": "Black Beans", "category": "Pantry", "quantity": 2, "confidence": "high"},
+  {"name": "Diced Tomatoes", "category": "Pantry", "quantity": 1, "confidence": "high"},
+  {"name": "Pasta", "category": "Pantry", "quantity": 1, "confidence": "high"},
+  {"name": "Chicken Broth", "category": "Pantry", "quantity": 3, "confidence": "high"},
+  {"name": "Olive Oil", "category": "Pantry", "quantity": 1, "confidence": "medium"}
+]`;
+
+// ---------------------------------------------------------------------------
+// Model configs — selected in handleParseHaul based on haul.source
+// ---------------------------------------------------------------------------
+const RECEIPT_CONFIG = {
+  model: 'claude-haiku-4-5-20251001',
+  systemPrompt: RECEIPT_SYSTEM_PROMPT,
+  inputCostPerToken: 0.0000008,  // $0.80 / 1M (Haiku, 2026-04)
+  outputCostPerToken: 0.000004,  // $4.00 / 1M
+};
+
+const COUNTER_CONFIG = {
+  model: 'claude-sonnet-4-6',
+  systemPrompt: COUNTER_SYSTEM_PROMPT,
+  inputCostPerToken: 0.000003,   // $3.00 / 1M (Sonnet, 2026-04)
+  outputCostPerToken: 0.000015,  // $15.00 / 1M
+};
+
+// ---------------------------------------------------------------------------
 // Route handler (called from index.js after auth + spend cap + rate limit)
 // ---------------------------------------------------------------------------
 export async function handleParseHaul(request, env, user) {
@@ -259,12 +308,13 @@ export async function handleParseHaul(request, env, user) {
     return Response.json({ error: 'Failed to download photos', detail: err.message }, { status: 502 });
   }
 
-  // 5. Call Anthropic API
-  let parsedItems, usage;
+  // 5. Call Anthropic API (Haiku for receipts, Sonnet for counter photos)
+  const config = haul.source === 'counter_photo' ? COUNTER_CONFIG : RECEIPT_CONFIG;
+  let parsedItems, parseCost;
   try {
-    const result = await callAnthropic(photos, env);
+    const result = await callAnthropic(photos, config, env);
     parsedItems = result.items;
-    usage = result.usage;
+    parseCost = result.cost;
   } catch (err) {
     await setHaulFailed(haul_id, err.message, env);
     return Response.json({ error: 'Parsing failed', detail: err.message }, { status: 502 });
@@ -274,7 +324,7 @@ export async function handleParseHaul(request, env, user) {
   await patchHaul(haul_id, { status: 'ready', parsed_items: parsedItems }, env);
 
   // 7. Record usage (non-blocking — don't fail the request if this errors)
-  recordUsage(user.id, usage, env).catch((err) =>
+  recordUsage(user.id, parseCost, env).catch((err) =>
     console.error('recordUsage failed:', err.message),
   );
 
@@ -349,8 +399,7 @@ async function setHaulFailed(haulId, errorMessage, env) {
   );
 }
 
-async function recordUsage(userId, { inputTokens, outputTokens }, env) {
-  const cost = inputTokens * COST_PER_INPUT_TOKEN + outputTokens * COST_PER_OUTPUT_TOKEN;
+async function recordUsage(userId, cost, env) {
   const today = new Date().toISOString().slice(0, 10);
   const baseHeaders = { ...supabaseHeaders(env), 'Content-Type': 'application/json' };
 
@@ -390,7 +439,7 @@ async function recordUsage(userId, { inputTokens, outputTokens }, env) {
 // Anthropic API
 // ---------------------------------------------------------------------------
 
-async function callAnthropic(photos, env) {
+async function callAnthropic(photos, config, env) {
   const imageBlocks = photos.map(({ base64, mediaType }) => ({
     type: 'image',
     source: { type: 'base64', media_type: mediaType, data: base64 },
@@ -404,9 +453,9 @@ async function callAnthropic(photos, env) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: RECEIPT_MODEL,
+      model: config.model,
       max_tokens: 2048,
-      system: RECEIPT_SYSTEM_PROMPT,
+      system: config.systemPrompt,
       messages: [
         {
           role: 'user',
@@ -446,13 +495,11 @@ async function callAnthropic(photos, env) {
   // Post-process: strip brand names and "Organic" regardless of model output
   items = items.map((item) => ({ ...item, name: normalizeItemName(item.name) }));
 
-  return {
-    items,
-    usage: {
-      inputTokens: data.usage?.input_tokens ?? 0,
-      outputTokens: data.usage?.output_tokens ?? 0,
-    },
-  };
+  const inputTokens = data.usage?.input_tokens ?? 0;
+  const outputTokens = data.usage?.output_tokens ?? 0;
+  const cost = inputTokens * config.inputCostPerToken + outputTokens * config.outputCostPerToken;
+
+  return { items, cost };
 }
 
 // ---------------------------------------------------------------------------

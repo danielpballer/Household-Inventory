@@ -2,9 +2,14 @@ import { useState, useEffect } from 'preact/hooks';
 import { supabase } from '../db.js';
 
 export function AddHaul({ session }) {
+  const [activeTab, setActiveTab] = useState('receipt');
   const [status, setStatus] = useState('idle'); // idle | uploading | parsing | error
   const [errorMsg, setErrorMsg] = useState(null);
   const [householdId, setHouseholdId] = useState(null);
+
+  // Counter photo state
+  const [pendingPhotos, setPendingPhotos] = useState([]); // compressed Blobs
+  const [previews, setPreviews] = useState([]);           // object URLs for thumbnails
 
   useEffect(() => {
     supabase
@@ -15,6 +20,22 @@ export function AddHaul({ session }) {
         if (data) setHouseholdId(data.household_id);
       });
   }, []);
+
+  // Revoke object URLs when previews change or component unmounts
+  useEffect(() => {
+    return () => previews.forEach((url) => URL.revokeObjectURL(url));
+  }, [previews]);
+
+  function switchTab(tab) {
+    if (status !== 'idle') return;
+    if (tab === 'receipt') {
+      previews.forEach((url) => URL.revokeObjectURL(url));
+      setPendingPhotos([]);
+      setPreviews([]);
+    }
+    setErrorMsg(null);
+    setActiveTab(tab);
+  }
 
   async function compressImage(file) {
     const MAX_PX = 1800;
@@ -35,14 +56,38 @@ export function AddHaul({ session }) {
     });
   }
 
-  async function handleFileChange(e) {
+  async function callWorker(haulId) {
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    const token = currentSession.access_token;
+    const workerUrl = import.meta.env.VITE_WORKER_URL;
+    let response;
+    try {
+      response = await fetch(`${workerUrl}/parse-haul`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ haul_id: haulId }),
+      });
+    } catch {
+      throw new Error('Network error — check your connection and try again.');
+    }
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || `Parse failed (${response.status})`);
+    }
+  }
+
+  // ---- Receipt tab ----
+
+  async function handleReceiptFileChange(e) {
     const file = e.target.files?.[0];
     if (!file || !householdId) return;
 
     setStatus('uploading');
     setErrorMsg(null);
 
-    // Compress to JPEG ≤ 1800px before uploading so Anthropic's 5MB limit is never hit
     const compressed = await compressImage(file);
     const path = `${session.user.id}/${crypto.randomUUID()}.jpg`;
 
@@ -56,7 +101,6 @@ export function AddHaul({ session }) {
       return;
     }
 
-    // Insert pending_hauls row
     const { data: haul, error: haulError } = await supabase
       .from('pending_hauls')
       .insert({
@@ -77,36 +121,89 @@ export function AddHaul({ session }) {
 
     setStatus('parsing');
 
-    // Call the Worker to parse the receipt
-    const { data: { session: currentSession } } = await supabase.auth.getSession();
-    const token = currentSession.access_token;
-
-    const workerUrl = import.meta.env.VITE_WORKER_URL;
-    let response;
     try {
-      response = await fetch(`${workerUrl}/parse-haul`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ haul_id: haul.id }),
-      });
-    } catch (networkError) {
-      setErrorMsg('Network error — check your connection and try again.');
-      setStatus('error');
-      return;
-    }
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      setErrorMsg(body.error || `Parse failed (${response.status})`);
+      await callWorker(haul.id);
+    } catch (err) {
+      setErrorMsg(err.message);
       setStatus('error');
       return;
     }
 
     window.location.hash = '#hauls-inbox';
   }
+
+  // ---- Counter Photos tab ----
+
+  async function handleCounterFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file || pendingPhotos.length >= 5) return;
+    e.target.value = '';
+    const compressed = await compressImage(file);
+    const preview = URL.createObjectURL(compressed);
+    setPendingPhotos((prev) => [...prev, compressed]);
+    setPreviews((prev) => [...prev, preview]);
+  }
+
+  function removePhoto(index) {
+    URL.revokeObjectURL(previews[index]);
+    setPendingPhotos((prev) => prev.filter((_, i) => i !== index));
+    setPreviews((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleCounterSubmit() {
+    if (pendingPhotos.length === 0 || !householdId) return;
+
+    setStatus('uploading');
+    setErrorMsg(null);
+
+    const paths = [];
+    for (const photo of pendingPhotos) {
+      const path = `${session.user.id}/${crypto.randomUUID()}.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('haul-photos')
+        .upload(path, photo, { contentType: 'image/jpeg' });
+      if (uploadError) {
+        setErrorMsg('Photo upload failed: ' + uploadError.message);
+        setStatus('error');
+        return;
+      }
+      paths.push(path);
+    }
+
+    const { data: haul, error: haulError } = await supabase
+      .from('pending_hauls')
+      .insert({
+        household_id: householdId,
+        user_id: session.user.id,
+        source: 'counter_photo',
+        status: 'parsing',
+        photo_urls: paths,
+      })
+      .select()
+      .single();
+
+    if (haulError) {
+      setErrorMsg('Failed to create haul: ' + haulError.message);
+      setStatus('error');
+      return;
+    }
+
+    setStatus('parsing');
+
+    try {
+      await callWorker(haul.id);
+    } catch (err) {
+      setErrorMsg(err.message);
+      setStatus('error');
+      return;
+    }
+
+    window.location.hash = '#hauls-inbox';
+  }
+
+  // ---- Render ----
+
+  const busy = status === 'uploading' || status === 'parsing';
 
   return (
     <div class="add-haul">
@@ -116,18 +213,43 @@ export function AddHaul({ session }) {
       </div>
 
       <div class="haul-source-tabs">
-        <button class="source-tab active">Receipt</button>
         <button
-          class="source-tab"
-          disabled
-          title="Coming soon in Phase 2"
+          class={`source-tab ${activeTab === 'receipt' ? 'active' : ''}`}
+          onClick={() => switchTab('receipt')}
+          disabled={busy}
+        >
+          Receipt
+        </button>
+        <button
+          class={`source-tab ${activeTab === 'counter' ? 'active' : ''}`}
+          onClick={() => switchTab('counter')}
+          disabled={busy}
         >
           Counter Photos
         </button>
       </div>
 
-      {status === 'idle' && (
+      {status === 'uploading' && (
+        <div class="haul-status">
+          <div class="spinner" />
+          <p>Uploading photo{activeTab === 'counter' && pendingPhotos.length > 1 ? 's' : ''}…</p>
+        </div>
+      )}
+
+      {status === 'parsing' && (
+        <div class="haul-status">
+          <div class="spinner" />
+          <p>
+            {activeTab === 'counter'
+              ? 'Analyzing pantry photos… this takes 15–30 seconds.'
+              : 'Parsing receipt… this takes 5–15 seconds.'}
+          </p>
+        </div>
+      )}
+
+      {!busy && activeTab === 'receipt' && (
         <div class="haul-upload-area">
+          {status === 'error' && <p class="form-error">{errorMsg}</p>}
           <p class="haul-hint">Photograph your receipt to add items to your inventory.</p>
           <label class="btn-primary haul-upload-btn">
             📷 Take Photo
@@ -136,7 +258,7 @@ export function AddHaul({ session }) {
               accept="image/*"
               capture="environment"
               style={{ display: 'none' }}
-              onChange={handleFileChange}
+              onChange={handleReceiptFileChange}
               disabled={!householdId}
             />
           </label>
@@ -146,51 +268,77 @@ export function AddHaul({ session }) {
               type="file"
               accept="image/*"
               style={{ display: 'none' }}
-              onChange={handleFileChange}
+              onChange={handleReceiptFileChange}
               disabled={!householdId}
             />
           </label>
         </div>
       )}
 
-      {status === 'uploading' && (
-        <div class="haul-status">
-          <div class="spinner" />
-          <p>Uploading photo…</p>
-        </div>
-      )}
-
-      {status === 'parsing' && (
-        <div class="haul-status">
-          <div class="spinner" />
-          <p>Parsing receipt… this takes 5–15 seconds.</p>
-        </div>
-      )}
-
-      {status === 'error' && (
+      {!busy && activeTab === 'counter' && (
         <div class="haul-upload-area">
-          <p class="form-error">{errorMsg}</p>
-          <label class="btn-primary haul-upload-btn">
-            📷 Take Photo
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              style={{ display: 'none' }}
-              onChange={handleFileChange}
-              disabled={!householdId}
-            />
-          </label>
-          <label class="btn-secondary haul-upload-btn">
-            🖼 Upload Photo
-            <input
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={handleFileChange}
-              disabled={!householdId}
-            />
-          </label>
+          {status === 'error' && <p class="form-error">{errorMsg}</p>}
+          <p class="haul-hint">
+            Photograph your pantry shelves, fridge, or cabinets. Add up to 5 photos, then tap Analyze.
+          </p>
+
+          {previews.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', margin: '0.75rem 0' }}>
+              {previews.map((src, i) => (
+                <div key={i} style={{ position: 'relative' }}>
+                  <img
+                    src={src}
+                    alt={`Photo ${i + 1}`}
+                    style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '6px' }}
+                  />
+                  <button
+                    onClick={() => removePhoto(i)}
+                    style={{
+                      position: 'absolute', top: '-6px', right: '-6px',
+                      width: '20px', height: '20px', borderRadius: '50%',
+                      background: '#dc2626', color: '#fff', border: 'none',
+                      fontSize: '12px', lineHeight: '20px', cursor: 'pointer', padding: 0,
+                    }}
+                    aria-label={`Remove photo ${i + 1}`}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {pendingPhotos.length < 5 && (
+            <>
+              <label class="btn-primary haul-upload-btn">
+                📷 Take Photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  onChange={handleCounterFileChange}
+                  disabled={!householdId}
+                />
+              </label>
+              <label class="btn-secondary haul-upload-btn">
+                🖼 Upload Photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleCounterFileChange}
+                  disabled={!householdId}
+                />
+              </label>
+            </>
+          )}
+
+          {pendingPhotos.length > 0 && (
+            <button class="btn-primary haul-upload-btn" onClick={handleCounterSubmit}>
+              Analyze Pantry ({pendingPhotos.length} photo{pendingPhotos.length !== 1 ? 's' : ''})
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -137,7 +137,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 
 ### Model selection
 - **Receipts → Claude Haiku 4.5.** Structured text, no need for Sonnet.
-- **Counter photos → Claude Sonnet 4.6** (Phase 2).
+- **Counter photos → Claude Sonnet 4.6.** Visual shelf/pantry scanning requires stronger vision.
 - Target: under $1/week at normal usage (1–2 hauls/week).
 
 ### Receipt parsing quality
@@ -168,11 +168,11 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - GitHub Actions deploy to GitHub Pages
 
 ### Phase 2 — Polish
-- Counter photo ingestion (Sonnet path)
+- Counter photo ingestion (Sonnet path) ✅
+- Realtime sync between Dan's and Abby's phones ✅
 - Pantry audit mode
 - "Mark out" decrement option
 - Running Low as a dedicated screen
-- Realtime sync between Dan's and Abby's phones
 - Prompt caching for the `/parse-haul` endpoint (investigated — not cost-effective at current usage volume; system prompt at ~2,300 tokens is below Haiku 4.5's 4,096-token minimum)
 
 ### Phase 3 — Later (explicitly out of scope for v1)
