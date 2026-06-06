@@ -44,7 +44,10 @@ function ItemRow({ item, isEditing, editingName, setEditingName, onStartEdit, on
               aria-label={`Edit ${item.name}`}
               title="Edit name"
             >
-              ✎
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9.5 1.5l3 3-7 7L2 12l.5-2.5 7-7z"/>
+                <path d="M8 3l3 3"/>
+              </svg>
             </button>
           )}
         </div>
@@ -62,11 +65,13 @@ function ItemRow({ item, isEditing, editingName, setEditingName, onStartEdit, on
             aria-label={`Delete ${item.name}`}
             title="Remove from inventory"
           >
-            🗑
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2 4h12M5 4V2.5h6V4M3.5 4l1 10h7l1-10M6.5 7v4.5M9.5 7v4.5"/>
+            </svg>
           </button>
         ) : (
           <button
-            class="decrement-btn"
+            class="qty-btn"
             onClick={() => onUpdateQuantity(item, -1)}
             disabled={!online || item.quantity === 0}
             title={!online ? 'Offline — changes disabled' : '−1'}
@@ -79,7 +84,7 @@ function ItemRow({ item, isEditing, editingName, setEditingName, onStartEdit, on
           {item.quantity}
         </span>
         <button
-          class="decrement-btn"
+          class="qty-btn"
           onClick={() => onUpdateQuantity(item, 1)}
           disabled={!online}
           title={!online ? 'Offline — changes disabled' : '+1'}
@@ -379,11 +384,19 @@ export function Inventory({ session }) {
           class={`filter-chip ${showLowOnly ? 'active' : ''}`}
           onClick={() => setShowLowOnly((v) => !v)}
         >
-          🔴 Running Low
+          <span class="chip-dot" aria-hidden="true" />
+          Running Low
         </button>
         {items.length > 0 && (
           <button class="filter-chip" onClick={shareInventory}>
-            {copyFeedback ? '✓ Copied' : '↑ Share'}
+            {copyFeedback ? '✓ Copied' : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M7 9V2M4.5 4.5L7 2l2.5 2.5M2 10.5V13h10v-2.5"/>
+                </svg>
+                Share
+              </>
+            )}
           </button>
         )}
       </div>
@@ -395,13 +408,18 @@ export function Inventory({ session }) {
       )}
 
       {categories.length === 0 ? (
-        <p class="empty-state">
-          {search.trim()
-            ? 'No items match your search.'
-            : showLowOnly
-            ? 'Nothing running low right now.'
-            : 'No items yet — add some from the + Haul or Add Item screens.'}
-        </p>
+        <div class="empty-state">
+          <svg class="empty-state-icon" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/>
+          </svg>
+          <span>
+            {search.trim()
+              ? 'No items match your search.'
+              : showLowOnly
+              ? 'Nothing running low right now.'
+              : 'No items yet — add some from the + Haul or + Item screens.'}
+          </span>
+        </div>
       ) : (
         categories.map((category) => (
           <div key={category} class="category-group">
