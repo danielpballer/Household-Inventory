@@ -146,7 +146,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 
 ## Screens
 
-1. **Inventory (home screen)** — searchable list grouped by category. Each row: name (with ✎ edit button), last purchased date, quantity, −/+ buttons. Delete button (🗑) replaces − when quantity = 0. "Running Low" filter chip shows items at quantity ≤ 2. Tapping ✎ opens the keyboard immediately on mobile (input is always in the DOM, focused synchronously inside the tap gesture).
+1. **Inventory (home screen)** — searchable list grouped by category. Each row: name (with ✎ edit button), last purchased date, quantity, −/+ buttons. Delete button (🗑) replaces − when quantity = 0. "Running Low" filter chip shows items at quantity ≤ 2. "↑ Share" button exports the full inventory as formatted text — on mobile opens the native share sheet (e.g., Claude app); on desktop copies to clipboard. Tapping ✎ opens the keyboard immediately on mobile (input is always in the DOM, focused synchronously inside the tap gesture).
 2. **Activity Feed** — reverse-chronological list of recent adds/decrements/edits with user attribution.
 3. **Add Haul** — Receipt and Counter Photos tabs. Receipt tab: one photo, auto-submits on selection. Counter Photos tab: add up to 5 photos of shelves/fridge with previews, then tap "Analyze Pantry" to submit. Upload progress and parse spinner shown inline for both paths.
 4. **Pending Hauls Inbox** — list of hauls with status badges (Parsing / Ready to review / Failed / Committed) and relative timestamps.
@@ -170,6 +170,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 ### Phase 2 — Polish
 - Counter photo ingestion (Sonnet path) ✅
 - Realtime sync between Dan's and Abby's phones ✅
+- Inventory share button (native share sheet on mobile, clipboard on desktop) ✅
 - Pantry audit mode
 - "Mark out" decrement option
 - Running Low as a dedicated screen
