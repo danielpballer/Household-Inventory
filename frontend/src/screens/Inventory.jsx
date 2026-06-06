@@ -100,6 +100,7 @@ export function Inventory({ session }) {
   const [online, setOnline] = useState(navigator.onLine);
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
+  const [copyFeedback, setCopyFeedback] = useState(false);
 
   useEffect(() => {
     const onOnline = () => setOnline(true);
@@ -313,6 +314,34 @@ export function Inventory({ session }) {
     cancelEdit();
   }
 
+  async function shareInventory() {
+    const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const allGrouped = {};
+    for (const item of items) {
+      if (!allGrouped[item.category]) allGrouped[item.category] = [];
+      allGrouped[item.category].push(item);
+    }
+    const lines = [`Household Inventory — ${date}`, ''];
+    for (const cat of Object.keys(allGrouped).sort()) {
+      const catItems = allGrouped[cat].sort((a, b) => a.name.localeCompare(b.name));
+      lines.push(`${cat}`);
+      for (const item of catItems) {
+        lines.push(`• ${item.name} — qty ${item.quantity}`);
+      }
+      lines.push('');
+    }
+    lines.push(`Total: ${items.length} item${items.length !== 1 ? 's' : ''}`);
+    const text = lines.join('\n').trim();
+
+    if (navigator.share) {
+      try { await navigator.share({ text }); } catch { /* dismissed */ }
+    } else {
+      await navigator.clipboard.writeText(text);
+      setCopyFeedback(true);
+      setTimeout(() => setCopyFeedback(false), 2000);
+    }
+  }
+
   // Apply search and filter
   let visible = items;
   if (search.trim()) {
@@ -351,6 +380,11 @@ export function Inventory({ session }) {
         >
           🔴 Running Low
         </button>
+        {items.length > 0 && (
+          <button class="filter-chip" onClick={shareInventory}>
+            {copyFeedback ? '✓ Copied' : '↑ Share'}
+          </button>
+        )}
       </div>
 
       {!online && (
