@@ -146,7 +146,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 
 ## Screens
 
-1. **Inventory (home screen)** — searchable list grouped by category. Each row: name (with ✎ edit button), last purchased date, quantity, −/+ buttons. Delete button (🗑) replaces − when quantity = 0. "Running Low" filter chip shows items at quantity ≤ 2. "↑ Share" button exports the full inventory as formatted text — on mobile opens the native share sheet (e.g., Claude app); on desktop copies to clipboard. Tapping ✎ opens the keyboard immediately on mobile (input is always in the DOM, focused synchronously inside the tap gesture).
+1. **Inventory (home screen)** — searchable list grouped by category. Each row: name (with pencil SVG edit button), tappable category badge (tap to change category via inline select), last purchased date, quantity, −/+ buttons. Delete button replaces − when quantity = 0. "Running Low" filter chip (amber accent) shows items at quantity ≤ 2. Share button exports the full inventory as formatted text — on mobile opens the native share sheet (e.g., Claude app); on desktop copies to clipboard. Tapping the pencil opens the keyboard immediately on mobile (the input is off-screen but in the DOM, so `focus()` can be called synchronously inside the tap gesture — required for iOS to open the keyboard without a second tap).
 2. **Activity Feed** — reverse-chronological list of recent adds/decrements/edits with user attribution.
 3. **Add Haul** — Receipt and Counter Photos tabs. Receipt tab: one photo, auto-submits on selection. Counter Photos tab: add up to 5 photos of shelves/fridge with previews, then tap "Analyze Pantry" to submit. Upload progress and parse spinner shown inline for both paths.
 4. **Pending Hauls Inbox** — list of hauls with status badges (Parsing / Ready to review / Failed / Committed) and relative timestamps.
@@ -171,6 +171,8 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - Counter photo ingestion (Sonnet path) ✅
 - Realtime sync between Dan's and Abby's phones ✅
 - Inventory share button (native share sheet on mobile, clipboard on desktop) ✅
+- UI/UX polish: CSS design-token system, SVG icons throughout, icon+label nav bar, amber Running Low state, 40px touch targets ✅
+- Inline category editing from inventory screen (tappable category badge → select) ✅
 - Pantry audit mode
 - "Mark out" decrement option
 - Running Low as a dedicated screen
@@ -183,6 +185,54 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - Family/multi-user expansion
 - Barcode scanning fallback
 
+## Design System
+
+All visual styles are defined as CSS custom properties in `frontend/src/app.css`. No external CSS frameworks or web fonts — system font stack only (`-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`).
+
+### Color Tokens
+
+| Token | Value | Use |
+|---|---|---|
+| `--ink` | `#111827` | Primary text |
+| `--ink-2` | `#6B7280` | Secondary text, labels, metadata |
+| `--ink-3` | `#9CA3AF` | Timestamps, placeholders, disabled |
+| `--brand` | `#2D6A4F` | Primary actions, active nav, focus rings |
+| `--brand-dark` | `#245A42` | Button hover |
+| `--brand-bg` | `#EEF6F1` | Tinted backgrounds (icon containers, edit hover) |
+| `--amber` | `#D97706` | Running Low — warm, not alarming |
+| `--amber-bg` | `#FFFBEB` | Amber tinted surfaces (chips, offline banner) |
+| `--amber-border` | `#FCD34D` | Amber chip borders |
+| `--bg` | `#F9FAFB` | Page background |
+| `--surface` | `#FFFFFF` | Cards, nav bar, item surface |
+| `--border` | `#F3F4F6` | Row separators, subtle dividers |
+| `--border-input` | `#E5E7EB` | Input borders, button outlines |
+| `--destructive` | `#EF4444` | Delete-only actions |
+
+**Rule:** Running Low and related warning states use amber tokens, not `--destructive`. Red is reserved exclusively for permanent delete actions.
+
+### Typography
+
+| Role | Size | Weight | Used on |
+|---|---|---|---|
+| Display | 24px / 700 | Sign-in card h1 |
+| Screen header | 18px / 700 | All screen h2 headings |
+| Category heading | 11px / 600 uppercase | Inventory section dividers |
+| Body / item names | 16px / 400 | Item rows, form inputs |
+| Form labels | 14px / 500 | Field labels |
+| Captions | 12px / 400 | Dates, timestamps |
+| Nav / badges | 11px / 500–600 | Nav labels, status badges |
+
+### Spacing and Shape
+
+- **Grid:** 8pt — all padding, gap, and margin values are multiples of 4 or 8px.
+- **Border radius:** Inputs and buttons `10px`; chips and badges `20px` (pill); quantity buttons `50%` (40×40px circles); sign-in card `20px`.
+- **Shadows:** Sign-in card only (`0 2px 8px rgba(0,0,0,0.06), 0 16px 40px rgba(0,0,0,0.08)`). Everything else is flat.
+- **Transitions:** Single token `--t: 150ms ease` used throughout.
+
+### Icons
+
+All icons are hand-written inline SVGs — no icon library, no CDN dependency. Stroke-based (`fill="none"`, `stroke="currentColor"`, `stroke-width="1.5"–"1.75"`). All icon-only interactive buttons have a minimum 40×40px touch target. `aria-hidden="true"` on every decorative SVG.
+
 ## Decisions Resolved During Build
 
 - **Authentication:** Changed from magic link to email/password. Magic link redirects don't work reliably on GitHub Pages sub-paths; email/password is simpler for a two-person private app.
@@ -194,7 +244,9 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - **Inline merge:** Renaming an item to match an existing item merges them (summed quantity, most recent last_purchased_at kept).
 - **PWA paths:** `manifest.json` and `index.html` use relative paths (`./`) so start_url, icons, and the manifest link all resolve correctly under the `/Household-Inventory/` base path.
 - **Photo compression:** Mobile camera photos can exceed Anthropic's 5MB per-image limit. All photos are resized client-side (canvas API, max 1800px, JPEG 0.85) before upload. A 10MB phone photo typically compresses to under 1MB.
-- **Mobile keyboard on inline edit:** The item name input is always rendered in the DOM (styled as plain text when not editing) so `focus()` can be called synchronously inside the tap handler, which is required for iOS to open the keyboard without a second tap.
+- **Mobile keyboard on inline edit:** The item name input uses an off-screen-but-in-DOM pattern (`position: fixed; left: -9999px`) when not editing, paired with a visible `<span>` for display. The input stays focusable so `focus()` can be called synchronously inside the tap handler — required for iOS to open the keyboard without a second tap. `display: none` would break this.
+- **Inline category editing:** Tapping the category badge on an inventory row opens an inline `<select>` in place of the badge (auto-focused, commits on `onChange`, dismisses on `onBlur`). This avoids a separate edit screen for a common correction task.
+- **Running Low color:** Uses amber (`--amber: #D97706`) instead of red. Red signals "error/danger" and caused unnecessary alarm at the grocery store; amber reads as "attention needed" without urgency.
 
 ## Success Criteria
 - Abby uses it for 2 consecutive weeks without prompting.
