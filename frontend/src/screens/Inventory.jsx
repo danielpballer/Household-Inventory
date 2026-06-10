@@ -129,6 +129,7 @@ export function Inventory({ session }) {
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('');
 
   useEffect(() => {
     const onOnline = () => setOnline(true);
@@ -404,6 +405,9 @@ export function Inventory({ session }) {
   if (showLowOnly) {
     visible = visible.filter((i) => i.quantity <= 2);
   }
+  if (categoryFilter) {
+    visible = visible.filter((i) => i.category === categoryFilter);
+  }
 
   // Group by category, sorted alphabetically
   const grouped = {};
@@ -434,6 +438,17 @@ export function Inventory({ session }) {
           <span class="chip-dot" aria-hidden="true" />
           Running Low
         </button>
+        <select
+          class={`category-filter-select ${categoryFilter ? 'active' : ''}`}
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          aria-label="Filter by category"
+        >
+          <option value="">All Categories</option>
+          {CATEGORIES.map((cat) => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
         {items.length > 0 && (
           <button class="filter-chip" onClick={shareInventory}>
             {copyFeedback ? '✓ Copied' : (
