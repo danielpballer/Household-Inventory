@@ -59,6 +59,7 @@ function ItemRow({ item, isEditing, editingName, setEditingName, onStartEdit, on
             <button
               class={`add-list-btn ${isOnList ? 'on' : ''}`}
               onClick={() => !isOnList && onAddToList(item)}
+              aria-disabled={isOnList}
               aria-label={isOnList ? `${item.name} is on the grocery list` : `Add ${item.name} to grocery list`}
               title={isOnList ? 'On the grocery list' : 'Add to grocery list'}
             >
@@ -374,7 +375,7 @@ export function Inventory({ session }) {
   }
 
   async function addToList(item) {
-    if (onListIds.has(item.id)) return;
+    if (!online || onListIds.has(item.id)) return;
     setOnListIds((prev) => new Set(prev).add(item.id));
     await addItem({ name: item.name, item_id: item.id });
   }

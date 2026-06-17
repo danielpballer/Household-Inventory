@@ -168,8 +168,10 @@ export async function sync() {
 
 /** Subscribes to realtime changes. `onChange` is called for any change. */
 export function subscribeGrocery(onChange) {
+  // Unique channel name per subscription so multiple subscribers (e.g. the
+  // List and Inventory screens) never collide on a shared channel.
   const channel = supabase
-    .channel('grocery-sync')
+    .channel(`grocery-sync-${crypto.randomUUID().slice(0, 8)}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, onChange)
     .subscribe();
   return () => channel.unsubscribe();
