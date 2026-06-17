@@ -1199,6 +1199,17 @@ body {
   line-height: 1.4;
 }
 
+/* Off-screen (but focusable) when not editing — same technique as the
+   inventory name input, scoped to the grocery input's class. */
+.grocery-name-input.item-name-offscreen {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
 /* Add-to-grocery-list button (inventory rows) */
 .add-list-btn {
   flex-shrink: 0;

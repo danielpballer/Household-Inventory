@@ -138,7 +138,7 @@ export async function pull() {
     return _getGroceryList();
   }
   const local = await _getGroceryList();
-  const merged = mergeRows(local, data);
+  const merged = mergeRows(local, data ?? []);
   await setGroceryList(merged);
   return merged;
 }
