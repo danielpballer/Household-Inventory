@@ -11,14 +11,18 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'household-inventory';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = 'inventory';
+const GROCERY_STORE = 'grocery_list';
 
 function getDB() {
   return openDB(DB_NAME, DB_VERSION, {
     upgrade(db) {
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(GROCERY_STORE)) {
+        db.createObjectStore(GROCERY_STORE, { keyPath: 'id' });
       }
     },
   });
@@ -40,5 +44,36 @@ export async function setInventory(items) {
   const tx = db.transaction(STORE, 'readwrite');
   await tx.store.clear();
   await Promise.all(items.map((item) => tx.store.put(item)));
+  await tx.done;
+}
+
+/** Returns all cached grocery rows (including soft-deleted), or [] if empty. */
+export async function getGroceryList() {
+  try {
+    const db = await getDB();
+    return await db.getAll(GROCERY_STORE);
+  } catch {
+    return [];
+  }
+}
+
+/** Inserts or updates a single grocery row by id. */
+export async function putGroceryRow(row) {
+  const db = await getDB();
+  await db.put(GROCERY_STORE, row);
+}
+
+/** Deletes a single grocery row by id. */
+export async function deleteGroceryRow(id) {
+  const db = await getDB();
+  await db.delete(GROCERY_STORE, id);
+}
+
+/** Replaces the entire grocery cache with the provided rows array. */
+export async function setGroceryList(rows) {
+  const db = await getDB();
+  const tx = db.transaction(GROCERY_STORE, 'readwrite');
+  await tx.store.clear();
+  await Promise.all(rows.map((row) => tx.store.put(row)));
   await tx.done;
 }
