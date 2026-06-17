@@ -7,6 +7,7 @@ import { AddHaul } from './screens/AddHaul.jsx';
 import { HaulsInbox } from './screens/HaulsInbox.jsx';
 import { ReviewHaul } from './screens/ReviewHaul.jsx';
 import { Activity } from './screens/Activity.jsx';
+import { GroceryList } from './screens/GroceryList.jsx';
 
 function getHash() {
   return window.location.hash || '#inventory';
@@ -85,6 +86,14 @@ export function App() {
           </svg>
           <span>Inbox</span>
         </a>
+        <a href="#grocery" class={route === '#grocery' ? 'active' : ''}>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="3" width="12" height="15" rx="1.5"/>
+            <path d="M7.5 3.5h5V5h-5z"/>
+            <path d="M7 9l1.3 1.3L11 7.5M7 13l1.3 1.3L11 11.5"/>
+          </svg>
+          <span>List</span>
+        </a>
         <a href="#activity" class={route === '#activity' ? 'active' : ''}>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
             <circle cx="10" cy="10" r="7.5"/>
@@ -107,6 +116,7 @@ function Screen({ route, hash, session }) {
     return <ReviewHaul haulId={haulId} session={session} />;
   }
   if (route === '#activity') return <Activity session={session} />;
+  if (route === '#grocery') return <GroceryList session={session} />;
 
   // Remaining screens wired up in Steps 11–15
   return (
