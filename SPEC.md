@@ -72,6 +72,15 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - `parsed_items` (jsonb) — array of `{name, category, quantity, confidence}`
 - `created_at`, `committed_at`
 
+### `grocery_list_items`
+- `id` (uuid, pk) — client-generated so offline-created rows keep their id
+- `household_id` (fk)
+- `name` (text)
+- `quantity` (integer, default 1, CHECK ≥ 1)
+- `item_id` (fk → items, nullable) — set when added from inventory; null for custom items
+- `deleted_at` (timestamptz, nullable) — soft-delete set on check-off; purged after 1 day
+- `created_at`, `updated_at`
+
 ### `usage_meter` (for spend cap + rate limiting)
 - `id` (uuid, pk)
 - `user_id` (fk)
@@ -81,7 +90,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 
 ## Architecture
 
-- **Frontend:** Preact PWA, built with Vite (no router library — hash-based routing in app.jsx). Service worker for offline caching of inventory list. IndexedDB mirror of inventory for instant load via `idb` library. Installable to home screen. SW registered using `import.meta.env.BASE_URL` so the path is correct for both local dev and GitHub Pages.
+- **Frontend:** Preact PWA, built with Vite (no router library — hash-based routing in app.jsx). Service worker for offline caching of inventory list. IndexedDB mirror of inventory for instant load via `idb` library. Installable to home screen. SW registered using `import.meta.env.BASE_URL` so the path is correct for both local dev and GitHub Pages. The bottom nav has six tabs: Inventory · + Item · + Haul · Inbox · List · Activity. The Grocery List is mirrored to IndexedDB and uses an optimistic, last-write-wins sync engine (`grocery-sync.js`) so it is fully usable offline; all other writes still require connectivity.
 - **Hosting (frontend):** GitHub Pages at `https://danielpballer.github.io/Household-Inventory/`. Built with `--base=/Household-Inventory/`. Manifest and HTML use relative paths (`./`) so the PWA install and icons work correctly under the sub-path.
 - **Backend:** Cloudflare Workers (one Worker, multiple routes). Holds the Anthropic API key. All vision API calls proxied through here.
 - **Database & Auth:** Supabase. Postgres + Supabase Auth (email/password) + Realtime subscriptions on `items`, `activity_log`, and `pending_hauls` for live sync between Dan's and Abby's phones.
@@ -148,11 +157,12 @@ The make-or-break UX requirement: **adding items must not require photographing 
 
 1. **Inventory (home screen)** — searchable list grouped by category. Each row: name (with pencil SVG edit button), tappable category badge (tap to change category via inline select), last purchased date, quantity, −/+ buttons. Delete button replaces − when quantity = 0. "Running Low" filter chip (amber accent) shows items at quantity ≤ 2. Share button exports the full inventory as formatted text — on mobile opens the native share sheet (e.g., Claude app); on desktop copies to clipboard. Tapping the pencil opens the keyboard immediately on mobile (the input is off-screen but in the DOM, so `focus()` can be called synchronously inside the tap gesture — required for iOS to open the keyboard without a second tap).
 2. **Activity Feed** — reverse-chronological list of recent adds/decrements/edits with user attribution.
-3. **Add Haul** — Receipt and Counter Photos tabs. Receipt tab: one photo, auto-submits on selection. Counter Photos tab: add up to 5 photos of shelves/fridge with previews, then tap "Analyze Pantry" to submit. Upload progress and parse spinner shown inline for both paths.
-4. **Pending Hauls Inbox** — list of hauls with status badges (Parsing / Ready to review / Failed / Committed) and relative timestamps.
-5. **Review Haul** — editable list of parsed items (name, category, quantity, delete). "+ Add missing item" button appends a blank row. "Commit" button merges into inventory.
-6. **Add Item** — manual add form (name, category, quantity). Checks for existing item by name (case-insensitive) and increments quantity rather than creating a duplicate.
-7. **Sign In** — email + password form. Displayed when no active session exists.
+3. **Grocery List** — a flat shopping list, shared and realtime, that works fully offline. Each row has a check-off circle, the item name (inline-renamable via pencil), and −/+ quantity steppers (min 1). An add bar at the top creates custom items. Checking an item off strikes it through, fades it out, and removes it (soft-delete). Items are added from the Inventory screen via a cart button, or typed in directly here. Independent of inventory — checking off does not change inventory quantities.
+4. **Add Haul** — Receipt and Counter Photos tabs. Receipt tab: one photo, auto-submits on selection. Counter Photos tab: add up to 5 photos of shelves/fridge with previews, then tap "Analyze Pantry" to submit. Upload progress and parse spinner shown inline for both paths.
+5. **Pending Hauls Inbox** — list of hauls with status badges (Parsing / Ready to review / Failed / Committed) and relative timestamps.
+6. **Review Haul** — editable list of parsed items (name, category, quantity, delete). "+ Add missing item" button appends a blank row. "Commit" button merges into inventory.
+7. **Add Item** — manual add form (name, category, quantity). Checks for existing item by name (case-insensitive) and increments quantity rather than creating a duplicate.
+8. **Sign In** — email + password form. Displayed when no active session exists.
 
 ## Build Phases
 
@@ -173,6 +183,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - Inventory share button (native share sheet on mobile, clipboard on desktop) ✅
 - UI/UX polish: CSS design-token system, SVG icons throughout, icon+label nav bar, amber Running Low state, 40px touch targets ✅
 - Inline category editing from inventory screen (tappable category badge → select) ✅
+- Grocery list (shared, offline-capable, add-from-inventory, check-off) ✅
 - Pantry audit mode
 - "Mark out" decrement option
 - Running Low as a dedicated screen
