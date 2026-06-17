@@ -1074,3 +1074,127 @@ body {
   gap: 8px;
   padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
+
+/* ============================================================
+   Grocery List
+   ============================================================ */
+.grocery-body {
+  padding: 16px;
+}
+
+.grocery-add {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.grocery-add-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border-input);
+  border-radius: 10px;
+  font-size: 0.9375rem;
+  color: var(--ink);
+  background: var(--surface);
+  outline: none;
+  transition: border-color var(--t), box-shadow var(--t);
+  -webkit-appearance: none;
+}
+
+.grocery-add-input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.08);
+}
+
+.grocery-add-btn {
+  width: 44px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 10px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--t);
+}
+
+.grocery-add-btn:hover {
+  background: var(--brand-dark);
+}
+
+.grocery-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.grocery-row.removing {
+  opacity: 0;
+  transform: translateX(12px);
+}
+
+.grocery-check {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--border-input);
+  background: none;
+  color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--t), border-color var(--t), color var(--t);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.grocery-check:hover {
+  border-color: var(--brand);
+}
+
+.grocery-row.removing .grocery-check {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.grocery-name-wrap {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.grocery-name {
+  flex: 1;
+  font-size: 1rem;
+  color: var(--ink);
+  line-height: 1.4;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.grocery-row.removing .grocery-name {
+  text-decoration: line-through;
+  color: var(--ink-3);
+}
+
+.grocery-name-input {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--ink);
+  border: 1.5px solid var(--brand);
+  border-radius: 6px;
+  padding: 3px 8px;
+  width: 100%;
+  outline: none;
+  background: var(--surface);
+  line-height: 1.4;
+}

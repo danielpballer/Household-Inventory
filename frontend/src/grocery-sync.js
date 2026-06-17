@@ -13,10 +13,13 @@
 
 import { supabase } from './db.js';
 import {
-  getGroceryList,
+  getGroceryList as _getGroceryList,
   putGroceryRow,
   setGroceryList,
 } from './offline.js';
+
+/** Re-exported so screens can import everything from grocery-sync.js. */
+export { _getGroceryList as getGroceryList };
 
 const TABLE = 'grocery_list_items';
 const PURGE_MS = 24 * 60 * 60 * 1000; // 1 day
@@ -115,7 +118,7 @@ export async function checkOff(row) {
 
 /** Pushes all dirty rows to Supabase; clears _dirty on success. */
 export async function pushDirty() {
-  const rows = await getGroceryList();
+  const rows = await _getGroceryList();
   const dirty = rows.filter((r) => r._dirty);
   if (dirty.length === 0) return;
   const { data, error } = await supabase.from(TABLE).upsert(dirty.map(toPayload)).select();
@@ -132,9 +135,9 @@ export async function pull() {
   const { data, error } = await supabase.from(TABLE).select('*');
   if (error) {
     console.error('Grocery pull failed:', error.message);
-    return getGroceryList();
+    return _getGroceryList();
   }
-  const local = await getGroceryList();
+  const local = await _getGroceryList();
   const merged = mergeRows(local, data);
   await setGroceryList(merged);
   return merged;
@@ -150,7 +153,7 @@ export async function purge() {
       .not('deleted_at', 'is', null)
       .lt('deleted_at', cutoff);
   }
-  const rows = await getGroceryList();
+  const rows = await _getGroceryList();
   const keep = rows.filter((r) => !(r.deleted_at && r.deleted_at < cutoff));
   if (keep.length !== rows.length) await setGroceryList(keep);
 }
