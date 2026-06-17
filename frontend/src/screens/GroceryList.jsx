@@ -85,6 +85,8 @@ export function GroceryList() {
   const [newName, setNewName] = useState('');
   const [online, setOnline] = useState(navigator.onLine);
   const [removingIds, setRemovingIds] = useState(() => new Set());
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   async function refresh() {
     const all = await getGroceryList();
@@ -132,18 +134,21 @@ export function GroceryList() {
     await refresh();
   }
 
-  // Check-off: animate out, then soft-delete after the transition.
+  // Check-off: animate out, then soft-delete once the transition finishes.
+  // The timeout matches the .grocery-row CSS transition (0.3s).
   function handleCheck(row) {
+    if (removingIds.has(row.id)) return; // ignore a second tap mid-animation
     setRemovingIds((prev) => new Set(prev).add(row.id));
     setTimeout(async () => {
       await checkOff(row);
+      if (!mountedRef.current) return; // navigated away mid-animation
       setRemovingIds((prev) => {
         const next = new Set(prev);
         next.delete(row.id);
         return next;
       });
       await refresh();
-    }, 350);
+    }, 300);
   }
 
   async function handleRename(row, name) {
@@ -172,6 +177,7 @@ export function GroceryList() {
             type="text"
             class="grocery-add-input"
             placeholder="Add an item…"
+            aria-label="New item name"
             value={newName}
             onInput={(e) => setNewName(e.target.value)}
           />
