@@ -71,11 +71,13 @@ async function applyLocal(row) {
   const updated = { ...row, updated_at: new Date().toISOString(), _dirty: true };
   await putGroceryRow(updated);
   if (navigator.onLine) {
-    const { error } = await supabase.from(TABLE).upsert(toPayload(updated));
+    // Adopt the server-written row so our local updated_at matches the value
+    // the DB trigger set — keeps last-write-wins converging on server time.
+    const { data, error } = await supabase.from(TABLE).upsert(toPayload(updated)).select().single();
     if (error) {
       console.error('Grocery sync failed:', error.message);
     } else {
-      await putGroceryRow({ ...updated, _dirty: false });
+      await putGroceryRow({ ...data, _dirty: false });
     }
   }
   return updated;
@@ -116,12 +118,13 @@ export async function pushDirty() {
   const rows = await getGroceryList();
   const dirty = rows.filter((r) => r._dirty);
   if (dirty.length === 0) return;
-  const { error } = await supabase.from(TABLE).upsert(dirty.map(toPayload));
+  const { data, error } = await supabase.from(TABLE).upsert(dirty.map(toPayload)).select();
   if (error) {
     console.error('Grocery push failed:', error.message);
     return;
   }
-  for (const r of dirty) await putGroceryRow({ ...r, _dirty: false });
+  // Adopt the server-written rows (canonical updated_at) and clear _dirty.
+  await Promise.all((data ?? []).map((r) => putGroceryRow({ ...r, _dirty: false })));
 }
 
 /** Pulls server rows and merges into the local cache (LWW). Returns merged rows. */
@@ -141,7 +144,11 @@ export async function pull() {
 export async function purge() {
   const cutoff = new Date(Date.now() - PURGE_MS).toISOString();
   if (navigator.onLine) {
-    await supabase.from(TABLE).delete().not('deleted_at', 'is', null).lt('deleted_at', cutoff);
+    const householdId = await getHouseholdId();
+    await supabase.from(TABLE).delete()
+      .eq('household_id', householdId)
+      .not('deleted_at', 'is', null)
+      .lt('deleted_at', cutoff);
   }
   const rows = await getGroceryList();
   const keep = rows.filter((r) => !(r.deleted_at && r.deleted_at < cutoff));
