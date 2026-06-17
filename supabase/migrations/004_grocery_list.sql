@@ -22,11 +22,11 @@ CREATE TABLE IF NOT EXISTS grocery_list_items (
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS grocery_list_items_household_id_idx
-  ON grocery_list_items(household_id);
-
-CREATE INDEX IF NOT EXISTS grocery_list_items_created_at_idx
-  ON grocery_list_items(created_at);
+-- Composite index covers the common query (a household's rows sorted by
+-- created_at) and, with household_id as the leading column, also serves
+-- plain household_id lookups — so no separate household_id index is needed.
+CREATE INDEX IF NOT EXISTS grocery_list_items_household_created_idx
+  ON grocery_list_items(household_id, created_at);
 
 -- Reuse the shared trigger function defined in 001_initial_schema.sql.
 DROP TRIGGER IF EXISTS grocery_list_items_updated_at ON grocery_list_items;
@@ -55,6 +55,9 @@ DROP POLICY IF EXISTS "Members can update their household grocery list" ON groce
 CREATE POLICY "Members can update their household grocery list"
   ON grocery_list_items FOR UPDATE TO authenticated
   USING (
+    household_id IN (SELECT household_id FROM household_members WHERE user_id = auth.uid())
+  )
+  WITH CHECK (
     household_id IN (SELECT household_id FROM household_members WHERE user_id = auth.uid())
   );
 
