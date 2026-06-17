@@ -93,7 +93,7 @@ The make-or-break UX requirement: **adding items must not require photographing 
 - **Frontend:** Preact PWA, built with Vite (no router library — hash-based routing in app.jsx). Service worker for offline caching of inventory list. IndexedDB mirror of inventory for instant load via `idb` library. Installable to home screen. SW registered using `import.meta.env.BASE_URL` so the path is correct for both local dev and GitHub Pages. The bottom nav has six tabs: Inventory · + Item · + Haul · Inbox · List · Activity. The Grocery List is mirrored to IndexedDB and uses an optimistic, last-write-wins sync engine (`grocery-sync.js`) so it is fully usable offline; all other writes still require connectivity.
 - **Hosting (frontend):** GitHub Pages at `https://danielpballer.github.io/Household-Inventory/`. Built with `--base=/Household-Inventory/`. Manifest and HTML use relative paths (`./`) so the PWA install and icons work correctly under the sub-path.
 - **Backend:** Cloudflare Workers (one Worker, multiple routes). Holds the Anthropic API key. All vision API calls proxied through here.
-- **Database & Auth:** Supabase. Postgres + Supabase Auth (email/password) + Realtime subscriptions on `items`, `activity_log`, and `pending_hauls` for live sync between Dan's and Abby's phones.
+- **Database & Auth:** Supabase. Postgres + Supabase Auth (email/password) + Realtime subscriptions on `items`, `activity_log`, `pending_hauls`, and `grocery_list_items` for live sync between Dan's and Abby's phones.
 - **Image storage:** Supabase Storage bucket `haul-photos` (private). Auto-delete after 30 days.
 
 ### Database Security (RLS)
