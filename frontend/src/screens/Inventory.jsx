@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import { supabase } from '../db.js';
 import { getInventory, setInventory } from '../offline.js';
+import { getGroceryList, addItem, subscribeGrocery, pull } from '../grocery-sync.js';
 
 const CATEGORIES = ['Beverages', 'Dairy', 'Frozen', 'Household', 'Meat', 'Other', 'Pantry', 'Produce', 'Snacks'];
 
@@ -8,7 +9,7 @@ const CATEGORIES = ['Beverages', 'Dairy', 'Frozen', 'Household', 'Meat', 'Other'
 // The input is always in the DOM (just readOnly when not editing) so we can
 // call focus() synchronously inside the pencil-button click handler — the
 // only way to reliably open the mobile keyboard without a user re-tap.
-function ItemRow({ item, isEditing, editingName, setEditingName, onStartEdit, onCancelEdit, onSaveEdit, onUpdateQuantity, onDeleteItem, onChangeCategory, online }) {
+function ItemRow({ item, isEditing, editingName, setEditingName, onStartEdit, onCancelEdit, onSaveEdit, onUpdateQuantity, onDeleteItem, onChangeCategory, onAddToList, isOnList, online }) {
   const nameRef = useRef(null);
   const [isCategoryEditing, setIsCategoryEditing] = useState(false);
 
@@ -51,6 +52,21 @@ function ItemRow({ item, isEditing, editingName, setEditingName, onStartEdit, on
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M9.5 1.5l3 3-7 7L2 12l.5-2.5 7-7z"/>
                 <path d="M8 3l3 3"/>
+              </svg>
+            </button>
+          )}
+          {online && (
+            <button
+              class={`add-list-btn ${isOnList ? 'on' : ''}`}
+              onClick={() => !isOnList && onAddToList(item)}
+              aria-label={isOnList ? `${item.name} is on the grocery list` : `Add ${item.name} to grocery list`}
+              title={isOnList ? 'On the grocery list' : 'Add to grocery list'}
+            >
+              <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="6.5" cy="15" r="1"/>
+                <circle cx="13.5" cy="15" r="1"/>
+                <path d="M1.5 2h2l1.8 9h8.2l1.5-6.5H4.2"/>
+                {isOnList && <path d="M7 6l1.5 1.5L11.5 4" stroke-width="1.8"/>}
               </svg>
             </button>
           )}
@@ -130,6 +146,7 @@ export function Inventory({ session }) {
   const [editingName, setEditingName] = useState('');
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [onListIds, setOnListIds] = useState(() => new Set());
 
   useEffect(() => {
     const onOnline = () => setOnline(true);
@@ -194,6 +211,19 @@ export function Inventory({ session }) {
       .subscribe();
 
     return () => channel.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    async function refreshOnList() {
+      const all = await getGroceryList();
+      setOnListIds(new Set(all.filter((r) => !r.deleted_at && r.item_id).map((r) => r.item_id)));
+    }
+    refreshOnList();
+    const unsubscribe = subscribeGrocery(async () => {
+      await pull();
+      await refreshOnList();
+    });
+    return unsubscribe;
   }, []);
 
   async function deleteItem(item) {
@@ -341,6 +371,12 @@ export function Inventory({ session }) {
     }
 
     cancelEdit();
+  }
+
+  async function addToList(item) {
+    if (onListIds.has(item.id)) return;
+    setOnListIds((prev) => new Set(prev).add(item.id));
+    await addItem({ name: item.name, item_id: item.id });
   }
 
   async function changeCategory(item, newCategory) {
@@ -499,6 +535,8 @@ export function Inventory({ session }) {
                 onUpdateQuantity={updateQuantity}
                 onDeleteItem={deleteItem}
                 onChangeCategory={changeCategory}
+                onAddToList={addToList}
+                isOnList={onListIds.has(item.id)}
                 online={online}
               />
             ))}

@@ -1198,3 +1198,32 @@ body {
   background: var(--surface);
   line-height: 1.4;
 }
+
+/* Add-to-grocery-list button (inventory rows) */
+.add-list-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--ink-3);
+  transition: color var(--t), background var(--t);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.add-list-btn:hover {
+  color: var(--brand);
+  background: var(--brand-bg);
+}
+
+.add-list-btn.on {
+  color: var(--brand);
+  background: var(--brand-bg);
+  cursor: default;
+}
