@@ -1078,6 +1078,11 @@ body {
 /* ============================================================
    Grocery List
    ============================================================ */
+/* Push the share button to the right edge of the header. */
+.grocery .screen-header .filter-chip {
+  margin-left: auto;
+}
+
 .grocery-body {
   padding: 16px;
 }

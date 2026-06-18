@@ -85,6 +85,7 @@ export function GroceryList() {
   const [newName, setNewName] = useState('');
   const [online, setOnline] = useState(navigator.onLine);
   const [removingIds, setRemovingIds] = useState(() => new Set());
+  const [copyFeedback, setCopyFeedback] = useState(false);
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
 
@@ -161,10 +162,44 @@ export function GroceryList() {
     await refresh();
   }
 
+  // Share the list as plain text — native share sheet on mobile (e.g. to a
+  // messaging app), clipboard on desktop. Mirrors the inventory share button.
+  async function shareList() {
+    const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const lines = [`Grocery List — ${date}`, ''];
+    for (const row of rows) {
+      lines.push(`• ${row.name} — qty ${row.quantity}`);
+    }
+    lines.push('');
+    lines.push(`Total: ${rows.length} item${rows.length !== 1 ? 's' : ''}`);
+    const text = lines.join('\n').trim();
+
+    const isTouchDevice = navigator.maxTouchPoints > 0;
+    if (navigator.share && isTouchDevice) {
+      try { await navigator.share({ text }); } catch { /* dismissed */ }
+    } else {
+      await navigator.clipboard.writeText(text);
+      setCopyFeedback(true);
+      setTimeout(() => setCopyFeedback(false), 2000);
+    }
+  }
+
   return (
     <div class="grocery">
       <div class="screen-header">
         <h2>Grocery List</h2>
+        {rows.length > 0 && (
+          <button class="filter-chip" onClick={shareList}>
+            {copyFeedback ? '✓ Copied' : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M7 9V2M4.5 4.5L7 2l2.5 2.5M2 10.5V13h10v-2.5"/>
+                </svg>
+                Share
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       <div class="grocery-body">
