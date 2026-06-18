@@ -318,7 +318,8 @@ body {
   padding: 10px 14px;
   border: 1.5px solid var(--border-input);
   border-radius: 10px;
-  font-size: 0.9375rem;
+  /* 16px (1rem) prevents iOS Safari from auto-zooming on focus. */
+  font-size: 1rem;
   color: var(--ink);
   background: var(--surface);
   outline: none;
@@ -1098,7 +1099,8 @@ body {
   padding: 10px 14px;
   border: 1.5px solid var(--border-input);
   border-radius: 10px;
-  font-size: 0.9375rem;
+  /* 16px (1rem) prevents iOS Safari from auto-zooming on focus. */
+  font-size: 1rem;
   color: var(--ink);
   background: var(--surface);
   outline: none;
