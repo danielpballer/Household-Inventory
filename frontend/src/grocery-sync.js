@@ -87,14 +87,14 @@ async function applyLocal(row) {
 }
 
 /** Adds a new grocery row (custom or from inventory). */
-export async function addItem({ name, item_id = null }) {
+export async function addItem({ name, item_id = null, quantity = 1 }) {
   const householdId = await getHouseholdId();
   const now = new Date().toISOString();
   return applyLocal({
     id: crypto.randomUUID(),
     household_id: householdId,
     name,
-    quantity: 1,
+    quantity: Math.max(1, quantity),
     item_id,
     deleted_at: null,
     created_at: now,

@@ -128,10 +128,19 @@ export function GroceryList() {
 
   async function handleAdd(e) {
     e.preventDefault();
-    const name = newName.trim();
-    if (!name) return;
+    const raw = newName.trim();
+    if (!raw) return;
+    // If the entry ends with a number, treat it as the quantity
+    // (e.g. "Blueberries 3" → name "Blueberries", quantity 3).
+    let name = raw;
+    let quantity = 1;
+    const match = raw.match(/^(.*\S)\s+(\d+)$/);
+    if (match) {
+      name = match[1];
+      quantity = Math.max(1, parseInt(match[2], 10));
+    }
     setNewName('');
-    await addItem({ name });
+    await addItem({ name, quantity });
     await refresh();
   }
 
@@ -211,7 +220,7 @@ export function GroceryList() {
           <input
             type="text"
             class="grocery-add-input"
-            placeholder="Add an item…"
+            placeholder="Add an item… (e.g. Eggs 2)"
             aria-label="New item name"
             value={newName}
             onInput={(e) => setNewName(e.target.value)}
