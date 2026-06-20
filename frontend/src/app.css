@@ -1029,13 +1029,15 @@ body {
 
 .review-category {
   flex: 1;
-  font-size: 0.875rem;
+  /* 16px (1rem) prevents iOS Safari from auto-zooming on focus. */
+  font-size: 1rem;
   padding: 9px 10px;
 }
 
 .review-qty {
   width: 4.5rem;
-  font-size: 0.875rem;
+  /* 16px (1rem) prevents iOS Safari from auto-zooming on focus. */
+  font-size: 1rem;
   padding: 9px 10px;
   text-align: center;
 }
