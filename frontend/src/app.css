@@ -1132,6 +1132,60 @@ body {
   background: var(--brand-dark);
 }
 
+/* Inventory suggestions shown under the add bar while typing */
+.grocery-suggestions {
+  margin: -10px 0 18px;
+  border: 1.5px solid var(--border-input);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.suggestion-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  font-size: 1rem;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.suggestion-row:last-child {
+  border-bottom: none;
+}
+
+.suggestion-row:hover {
+  background: var(--bg);
+}
+
+.suggestion-name {
+  flex: 1;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.suggestion-qty {
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.suggestion-onlist {
+  font-size: 0.8125rem;
+  color: var(--brand);
+  white-space: nowrap;
+}
+
 .grocery-row {
   display: flex;
   align-items: center;

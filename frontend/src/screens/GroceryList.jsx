@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
+import { supabase } from '../db.js';
+import { getInventory } from '../offline.js';
 import {
   getGroceryList,
   addItem,
@@ -86,8 +88,23 @@ export function GroceryList() {
   const [online, setOnline] = useState(navigator.onLine);
   const [removingIds, setRemovingIds] = useState(() => new Set());
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [invItems, setInvItems] = useState([]);
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
+
+  // Inventory for the add-bar suggestions: cached mirror first (instant,
+  // works offline), then a fresh fetch when online. State only — the
+  // Inventory screen owns writing the IndexedDB mirror.
+  useEffect(() => {
+    (async () => {
+      const cached = await getInventory();
+      if (mountedRef.current) setInvItems(cached);
+      if (navigator.onLine) {
+        const { data, error } = await supabase.from('items').select('*').order('name');
+        if (!error && data && mountedRef.current) setInvItems(data);
+      }
+    })();
+  }, []);
 
   async function refresh() {
     const all = await getGroceryList();
@@ -140,7 +157,11 @@ export function GroceryList() {
       quantity = Math.max(1, parseInt(match[2], 10));
     }
     setNewName('');
-    await addItem({ name, quantity });
+
+    // Link to the matching inventory item (if any) so the Inventory
+    // screen's cart button shows it as on the list.
+    const inv = invItems.find((i) => i.name.toLowerCase() === name.toLowerCase());
+    await addItem({ name: inv ? inv.name : name, item_id: inv ? inv.id : null, quantity });
     await refresh();
   }
 
@@ -193,6 +214,19 @@ export function GroceryList() {
     }
   }
 
+  // Inventory suggestions for the add bar. Match on the name with any
+  // trailing quantity stripped ("vanilla 2" matches on "vanilla"); hide
+  // once the text exactly equals a suggestion (i.e. after tapping one).
+  const addTrimmed = newName.trim();
+  const addStripped = addTrimmed.match(/^(.*\S)\s+\d+$/);
+  const addQuery = (addStripped ? addStripped[1] : addTrimmed).toLowerCase();
+  const listItemIds = new Set(rows.filter((r) => r.item_id).map((r) => r.item_id));
+  const suggestions = addQuery.length >= 2
+    ? invItems
+        .filter((i) => i.name.toLowerCase().includes(addQuery) && i.name.toLowerCase() !== addQuery)
+        .slice(0, 6)
+    : [];
+
   return (
     <div class="grocery">
       <div class="screen-header">
@@ -227,6 +261,27 @@ export function GroceryList() {
           />
           <button type="submit" class="grocery-add-btn" aria-label="Add item">+</button>
         </form>
+
+        {suggestions.length > 0 && (
+          <div class="grocery-suggestions">
+            {suggestions.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                class="suggestion-row"
+                onMouseDown={(e) => e.preventDefault()} /* keep the keyboard open */
+                onClick={() => setNewName(item.name + ' ')}
+              >
+                <span class="suggestion-name">{item.name}</span>
+                {listItemIds.has(item.id) ? (
+                  <span class="suggestion-onlist">✓ On list</span>
+                ) : (
+                  <span class="suggestion-qty">have {item.quantity}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
 
         {rows.length === 0 ? (
           <div class="empty-state">
