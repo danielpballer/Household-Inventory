@@ -1132,6 +1132,53 @@ body {
   background: var(--brand-dark);
 }
 
+/* Undo bar shown after a check-off */
+.undo-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--brand-bg);
+  border: 1px solid var(--brand);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.undo-text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.undo-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--brand);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.undo-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--ink-3);
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Inventory suggestions shown under the add bar while typing */
 .grocery-suggestions {
   margin: -10px 0 18px;

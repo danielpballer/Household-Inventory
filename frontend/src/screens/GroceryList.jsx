@@ -7,6 +7,7 @@ import {
   renameItem,
   setQuantity,
   checkOff,
+  restoreItem,
   sync,
   subscribeGrocery,
   pull,
@@ -89,6 +90,7 @@ export function GroceryList() {
   const [removingIds, setRemovingIds] = useState(() => new Set());
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [invItems, setInvItems] = useState([]);
+  const [lastChecked, setLastChecked] = useState(null);
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
 
@@ -173,6 +175,7 @@ export function GroceryList() {
     setTimeout(async () => {
       await checkOff(row);
       if (!mountedRef.current) return; // navigated away mid-animation
+      setLastChecked(row); // remember for the Undo bar
       setRemovingIds((prev) => {
         const next = new Set(prev);
         next.delete(row.id);
@@ -180,6 +183,13 @@ export function GroceryList() {
       });
       await refresh();
     }, 300);
+  }
+
+  async function handleUndo() {
+    if (!lastChecked) return;
+    setLastChecked(null);
+    await restoreItem(lastChecked);
+    await refresh();
   }
 
   async function handleRename(row, name) {
@@ -248,6 +258,14 @@ export function GroceryList() {
       <div class="grocery-body">
         {!online && (
           <div class="offline-banner">Offline — changes will sync when you're back online.</div>
+        )}
+
+        {lastChecked && (
+          <div class="undo-bar">
+            <span class="undo-text">✓ Checked off “{lastChecked.name}”</span>
+            <button class="undo-btn" onClick={handleUndo}>Undo</button>
+            <button class="undo-dismiss" onClick={() => setLastChecked(null)} aria-label="Dismiss">×</button>
+          </div>
         )}
 
         <form class="grocery-add" onSubmit={handleAdd}>

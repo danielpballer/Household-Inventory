@@ -116,6 +116,11 @@ export async function checkOff(row) {
   return applyLocal({ ...row, deleted_at: new Date().toISOString() });
 }
 
+/** Restores a checked-off row (clears the soft delete) — used by Undo. */
+export async function restoreItem(row) {
+  return applyLocal({ ...row, deleted_at: null });
+}
+
 /** Pushes all dirty rows to Supabase; clears _dirty on success. */
 export async function pushDirty() {
   const rows = await _getGroceryList();
