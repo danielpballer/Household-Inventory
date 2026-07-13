@@ -98,6 +98,9 @@ export async function addItem({ name, item_id = null, quantity = 1 }) {
     item_id,
     deleted_at: null,
     created_at: now,
+    // Epoch seconds: appends after every existing row (backfill uses the
+    // same scale) while staying clear of midpoint values from reorders.
+    sort_order: Date.now() / 1000,
   });
 }
 
@@ -119,6 +122,17 @@ export async function checkOff(row) {
 /** Restores a checked-off row (clears the soft delete) — used by Undo. */
 export async function restoreItem(row) {
   return applyLocal({ ...row, deleted_at: null });
+}
+
+/** Moves a row to a new sort position (drag-to-reorder). */
+export async function reorderItem(row, sortOrder) {
+  return applyLocal({ ...row, sort_order: sortOrder });
+}
+
+/** Effective sort position; rows from before the sort_order column fall
+    back to their creation time (same epoch-seconds scale as the backfill). */
+export function orderOf(row) {
+  return row.sort_order ?? Date.parse(row.created_at) / 1000;
 }
 
 /** Pushes all dirty rows to Supabase; clears _dirty on success. */
@@ -182,9 +196,10 @@ export function subscribeGrocery(onChange) {
   return () => channel.unsubscribe();
 }
 
-/** Convenience: active (not soft-deleted) rows sorted oldest-first. */
+/** Convenience: active (not soft-deleted) rows in manual sort order
+    (falls back to oldest-first for rows without a sort_order). */
 export function activeRows(rows) {
   return rows
     .filter((r) => !r.deleted_at)
-    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    .sort((a, b) => orderOf(a) - orderOf(b) || new Date(a.created_at) - new Date(b.created_at));
 }

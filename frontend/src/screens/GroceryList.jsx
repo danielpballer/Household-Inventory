@@ -8,6 +8,8 @@ import {
   setQuantity,
   checkOff,
   restoreItem,
+  reorderItem,
+  orderOf,
   sync,
   subscribeGrocery,
   pull,
@@ -17,7 +19,7 @@ import {
 // Row with inline rename. The name input is always in the DOM (off-screen
 // when not editing) so focus() works synchronously on tap — required for the
 // iOS keyboard to open without a second tap. Mirrors Inventory's ItemRow.
-function GroceryRow({ row, removing, onCheck, onRename, onQuantity }) {
+function GroceryRow({ row, removing, dragging, onCheck, onRename, onQuantity, onDragStart, onDragMove, onDragEnd }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(row.name);
   const nameRef = useRef(null);
@@ -39,7 +41,7 @@ function GroceryRow({ row, removing, onCheck, onRename, onQuantity }) {
   }
 
   return (
-    <div class={`grocery-row ${removing ? 'removing' : ''}`}>
+    <div class={`grocery-row ${removing ? 'removing' : ''} ${dragging ? 'dragging' : ''}`} data-id={row.id}>
       <button
         class="grocery-check"
         onClick={() => onCheck(row)}
@@ -78,6 +80,19 @@ function GroceryRow({ row, removing, onCheck, onRename, onQuantity }) {
         <button class="qty-btn" onClick={() => onQuantity(row, row.quantity - 1)} disabled={row.quantity <= 1} aria-label={`Decrease ${row.name}`}>−</button>
         <span class="item-qty">{row.quantity}</span>
         <button class="qty-btn" onClick={() => onQuantity(row, row.quantity + 1)} aria-label={`Increase ${row.name}`}>+</button>
+        <button
+          class="drag-handle"
+          aria-label={`Reorder ${row.name}`}
+          title="Drag to reorder"
+          onPointerDown={(e) => onDragStart(e, row)}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragEnd}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+            <path d="M3 5h10M3 8h10M3 11h10"/>
+          </svg>
+        </button>
       </div>
     </div>
   );
@@ -91,7 +106,9 @@ export function GroceryList() {
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [invItems, setInvItems] = useState([]);
   const [lastChecked, setLastChecked] = useState(null);
+  const [dragId, setDragId] = useState(null);
   const mountedRef = useRef(true);
+  const dragRef = useRef(null); // { id, startIndex } while a drag is active
   useEffect(() => () => { mountedRef.current = false; }, []);
 
   // Inventory for the add-bar suggestions: cached mirror first (instant,
@@ -109,6 +126,7 @@ export function GroceryList() {
   }, []);
 
   async function refresh() {
+    if (dragRef.current) return; // don't fight an in-progress drag
     const all = await getGroceryList();
     setRows(activeRows(all));
   }
@@ -189,6 +207,63 @@ export function GroceryList() {
     if (!lastChecked) return;
     setLastChecked(null);
     await restoreItem(lastChecked);
+    await refresh();
+  }
+
+  // ---- Drag to reorder ----
+  // The ≡ handle captures the pointer; while dragging we live-reorder the
+  // local rows array, and on drop persist a single fractional sort_order
+  // (midpoint of the new neighbors) so only the moved row syncs.
+
+  function handleDragStart(e, row) {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { id: row.id, startIndex: rows.findIndex((r) => r.id === row.id) };
+    setDragId(row.id);
+  }
+
+  function handleDragMove(e) {
+    if (!dragRef.current) return;
+
+    // Nudge the scroll container when dragging near the viewport edges.
+    const scroller = document.querySelector('.screen');
+    if (scroller) {
+      if (e.clientY < 130) scroller.scrollTop -= 10;
+      else if (e.clientY > window.innerHeight - 130) scroller.scrollTop += 10;
+    }
+
+    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.grocery-row');
+    const overId = over?.dataset?.id;
+    if (!overId || overId === dragRef.current.id) return;
+    setRows((prev) => {
+      const from = prev.findIndex((r) => r.id === dragRef.current.id);
+      const to = prev.findIndex((r) => r.id === overId);
+      if (from < 0 || to < 0 || from === to) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }
+
+  async function handleDragEnd() {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    setDragId(null);
+    if (!drag) return;
+
+    const idx = rows.findIndex((r) => r.id === drag.id);
+    if (idx < 0 || idx === drag.startIndex) return; // dropped where it started
+
+    const before = rows[idx - 1];
+    const after = rows[idx + 1];
+    let newOrder;
+    if (before && after) newOrder = (orderOf(before) + orderOf(after)) / 2;
+    else if (before) newOrder = orderOf(before) + 1;
+    else if (after) newOrder = orderOf(after) - 1;
+    else return; // only row in the list
+
+    await reorderItem(rows[idx], newOrder);
     await refresh();
   }
 
@@ -315,9 +390,13 @@ export function GroceryList() {
               key={row.id}
               row={row}
               removing={removingIds.has(row.id)}
+              dragging={dragId === row.id}
               onCheck={handleCheck}
               onRename={handleRename}
               onQuantity={handleQuantity}
+              onDragStart={handleDragStart}
+              onDragMove={handleDragMove}
+              onDragEnd={handleDragEnd}
             />
           ))
         )}

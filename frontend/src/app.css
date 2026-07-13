@@ -1247,6 +1247,35 @@ body {
   transform: translateX(12px);
 }
 
+.grocery-row.dragging {
+  background: var(--brand-bg);
+  border-radius: 10px;
+  transition: none; /* no fade/slide animation while being dragged */
+}
+
+.drag-handle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 40px;
+  margin-left: 2px;
+  background: none;
+  border: none;
+  color: var(--ink-3);
+  cursor: grab;
+  /* Required for touch drag: stops the browser treating the gesture
+     as a page scroll so pointermove events keep firing. */
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.grocery-row.dragging .drag-handle {
+  cursor: grabbing;
+  color: var(--brand);
+}
+
 .grocery-check {
   width: 26px;
   height: 26px;
