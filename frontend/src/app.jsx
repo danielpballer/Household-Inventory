@@ -9,8 +9,15 @@ import { ReviewHaul } from './screens/ReviewHaul.jsx';
 import { Activity } from './screens/Activity.jsx';
 import { GroceryList } from './screens/GroceryList.jsx';
 
+const NAV_ROUTES = ['#inventory', '#add-item', '#add-haul', '#hauls-inbox', '#grocery', '#activity'];
+const LAST_ROUTE_KEY = 'last-route';
+
 function getHash() {
-  return window.location.hash || '#inventory';
+  if (window.location.hash) return window.location.hash;
+  // Fresh launch (home-screen opens land on start_url with no hash):
+  // restore the last-visited nav tab.
+  const saved = localStorage.getItem(LAST_ROUTE_KEY);
+  return NAV_ROUTES.includes(saved) ? saved : '#inventory';
 }
 
 export function App() {
@@ -40,6 +47,22 @@ export function App() {
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
+
+  // On a fresh launch, put the restored tab in the URL bar so it matches
+  // what getHash() already rendered (replaceState doesn't re-fire routing).
+  useEffect(() => {
+    if (!window.location.hash) {
+      const saved = localStorage.getItem(LAST_ROUTE_KEY);
+      if (NAV_ROUTES.includes(saved)) window.history.replaceState(null, '', saved);
+    }
+  }, []);
+
+  // Remember the current tab for the next launch. Only nav tabs are saved —
+  // deep links like #review-haul?id=… shouldn't be restored later.
+  useEffect(() => {
+    const route = hash.split('?')[0];
+    if (NAV_ROUTES.includes(route)) localStorage.setItem(LAST_ROUTE_KEY, route);
+  }, [hash]);
 
   // Still checking session — show nothing to avoid flash of sign-in screen
   if (session === undefined) {
