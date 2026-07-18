@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import { supabase } from './db.js';
 import { SignIn } from './screens/SignIn.jsx';
 import { Inventory } from './screens/Inventory.jsx';
@@ -24,17 +24,26 @@ export function App() {
   // undefined = still checking session, null = no session, object = signed in
   const [session, setSession] = useState(undefined);
   const [hash, setHash] = useState(getHash);
+  // Mirrors the session state for the auth listener (avoids stale closures).
+  const sessionRef = useRef(undefined);
 
   useEffect(() => {
     // Check for an existing session on load
     supabase.auth.getSession().then(({ data: { session } }) => {
+      sessionRef.current = session ?? null;
       setSession(session ?? null);
     });
 
     // React to sign-in, sign-out, and token refresh events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Supabase also fires SIGNED_IN when it re-detects the stored session
+      // (app launch, regaining focus). Only redirect on a genuine sign-in —
+      // when we previously knew the user was signed out (sign-in screen was
+      // showing) — so launches keep the restored last-visited tab.
+      const wasSignedOut = sessionRef.current === null;
+      sessionRef.current = session ?? null;
       setSession(session ?? null);
-      if (event === 'SIGNED_IN') {
+      if (event === 'SIGNED_IN' && wasSignedOut) {
         window.location.hash = '#inventory';
       }
     });
