@@ -1180,6 +1180,24 @@ body {
 }
 
 /* Inventory suggestions shown under the add bar while typing */
+.store-filter-row {
+  margin-bottom: 4px;
+}
+
+.store-section {
+  margin-bottom: 20px;
+}
+
+.store-section-empty {
+  padding: 14px 0;
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+  text-align: center;
+  border: 1.5px dashed var(--border-input);
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
 .grocery-suggestions {
   margin: -10px 0 18px;
   border: 1.5px solid var(--border-input);

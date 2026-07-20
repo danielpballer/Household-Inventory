@@ -10,11 +10,14 @@ import {
   restoreItem,
   reorderItem,
   orderOf,
+  storeOf,
   sync,
   subscribeGrocery,
   pull,
   activeRows,
 } from '../grocery-sync.js';
+
+const STORES = ['Whole Foods', 'Costco', 'Other'];
 
 // Row with inline rename. The name input is always in the DOM (off-screen
 // when not editing) so focus() works synchronously on tap — required for the
@@ -107,6 +110,7 @@ export function GroceryList() {
   const [invItems, setInvItems] = useState([]);
   const [lastChecked, setLastChecked] = useState(null);
   const [dragId, setDragId] = useState(null);
+  const [storeFilter, setStoreFilter] = useState('');
   const mountedRef = useRef(true);
   const dragRef = useRef(null); // { id, startIndex } while a drag is active
   useEffect(() => () => { mountedRef.current = false; }, []);
@@ -179,9 +183,16 @@ export function GroceryList() {
     setNewName('');
 
     // Link to the matching inventory item (if any) so the Inventory
-    // screen's cart button shows it as on the list.
+    // screen's cart button shows it as on the list. New items go to the
+    // filtered store if one is active (otherwise the item would be
+    // invisible under the filter), else the default Whole Foods.
     const inv = invItems.find((i) => i.name.toLowerCase() === name.toLowerCase());
-    await addItem({ name: inv ? inv.name : name, item_id: inv ? inv.id : null, quantity });
+    await addItem({
+      name: inv ? inv.name : name,
+      item_id: inv ? inv.id : null,
+      quantity,
+      store: storeFilter || 'Whole Foods',
+    });
     await refresh();
   }
 
@@ -210,15 +221,20 @@ export function GroceryList() {
     await refresh();
   }
 
-  // ---- Drag to reorder ----
+  // ---- Drag to reorder / move between stores ----
   // The ≡ handle captures the pointer; while dragging we live-reorder the
-  // local rows array, and on drop persist a single fractional sort_order
-  // (midpoint of the new neighbors) so only the moved row syncs.
+  // local rows array (and adopt the hovered section's store), then on drop
+  // persist a single write: a fractional sort_order (midpoint of the new
+  // same-store neighbors) plus the store, so only the moved row syncs.
 
   function handleDragStart(e, row) {
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
-    dragRef.current = { id: row.id, startIndex: rows.findIndex((r) => r.id === row.id) };
+    dragRef.current = {
+      id: row.id,
+      startIndex: rows.findIndex((r) => r.id === row.id),
+      startStore: storeOf(row),
+    };
     setDragId(row.id);
   }
 
@@ -232,18 +248,35 @@ export function GroceryList() {
       else if (e.clientY > window.innerHeight - 130) scroller.scrollTop += 10;
     }
 
-    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.grocery-row');
-    const overId = over?.dataset?.id;
-    if (!overId || overId === dragRef.current.id) return;
-    setRows((prev) => {
-      const from = prev.findIndex((r) => r.id === dragRef.current.id);
-      const to = prev.findIndex((r) => r.id === overId);
-      if (from < 0 || to < 0 || from === to) return prev;
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
-    });
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+
+    // Over another row: take its position and its store section.
+    const overId = under?.closest('.grocery-row')?.dataset?.id;
+    if (overId && overId !== dragRef.current.id) {
+      setRows((prev) => {
+        const from = prev.findIndex((r) => r.id === dragRef.current.id);
+        const to = prev.findIndex((r) => r.id === overId);
+        if (from < 0 || to < 0 || from === to) return prev;
+        const next = [...prev];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, { ...moved, store: storeOf(prev[to]) });
+        return next;
+      });
+      return;
+    }
+
+    // Over a section header / empty section: move to the end of that store.
+    const overStore = under?.closest('.store-section')?.dataset?.store;
+    if (overStore) {
+      setRows((prev) => {
+        const from = prev.findIndex((r) => r.id === dragRef.current.id);
+        if (from < 0 || storeOf(prev[from]) === overStore) return prev;
+        const next = [...prev];
+        const [moved] = next.splice(from, 1);
+        next.push({ ...moved, store: overStore });
+        return next;
+      });
+    }
   }
 
   async function handleDragEnd() {
@@ -253,17 +286,28 @@ export function GroceryList() {
     if (!drag) return;
 
     const idx = rows.findIndex((r) => r.id === drag.id);
-    if (idx < 0 || idx === drag.startIndex) return; // dropped where it started
+    if (idx < 0) return;
+    const row = rows[idx];
+    const newStore = storeOf(row);
+    if (idx === drag.startIndex && newStore === drag.startStore) return; // dropped where it started
 
-    const before = rows[idx - 1];
-    const after = rows[idx + 1];
+    // Neighbors within the same store section (display order = array order).
+    let before = null;
+    let after = null;
+    for (let i = idx - 1; i >= 0; i--) {
+      if (storeOf(rows[i]) === newStore) { before = rows[i]; break; }
+    }
+    for (let i = idx + 1; i < rows.length; i++) {
+      if (storeOf(rows[i]) === newStore) { after = rows[i]; break; }
+    }
+
     let newOrder;
     if (before && after) newOrder = (orderOf(before) + orderOf(after)) / 2;
     else if (before) newOrder = orderOf(before) + 1;
     else if (after) newOrder = orderOf(after) - 1;
-    else return; // only row in the list
+    else newOrder = orderOf(row); // only item in its section — keep position
 
-    await reorderItem(rows[idx], newOrder);
+    await reorderItem(row, newOrder, newStore);
     await refresh();
   }
 
@@ -282,10 +326,15 @@ export function GroceryList() {
   async function shareList() {
     const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     const lines = [`Grocery List — ${date}`, ''];
-    for (const row of rows) {
-      lines.push(`• ${row.name} — qty ${row.quantity}`);
+    for (const store of STORES) {
+      const storeRows = rows.filter((r) => storeOf(r) === store);
+      if (storeRows.length === 0) continue;
+      lines.push(store);
+      for (const row of storeRows) {
+        lines.push(`• ${row.name} — qty ${row.quantity}`);
+      }
+      lines.push('');
     }
-    lines.push('');
     lines.push(`Total: ${rows.length} item${rows.length !== 1 ? 's' : ''}`);
     const text = lines.join('\n').trim();
 
@@ -376,6 +425,20 @@ export function GroceryList() {
           </div>
         )}
 
+        <div class="store-filter-row">
+          <select
+            class={`category-filter-select ${storeFilter ? 'active' : ''}`}
+            value={storeFilter}
+            onChange={(e) => setStoreFilter(e.target.value)}
+            aria-label="Filter by store"
+          >
+            <option value="">All Stores</option>
+            {STORES.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+
         {rows.length === 0 ? (
           <div class="empty-state">
             <svg class="empty-state-icon" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -385,20 +448,32 @@ export function GroceryList() {
             <span>Your grocery list is empty. Add items here or tap the cart icon on the Inventory screen.</span>
           </div>
         ) : (
-          rows.map((row) => (
-            <GroceryRow
-              key={row.id}
-              row={row}
-              removing={removingIds.has(row.id)}
-              dragging={dragId === row.id}
-              onCheck={handleCheck}
-              onRename={handleRename}
-              onQuantity={handleQuantity}
-              onDragStart={handleDragStart}
-              onDragMove={handleDragMove}
-              onDragEnd={handleDragEnd}
-            />
-          ))
+          (storeFilter ? [storeFilter] : STORES).map((store) => {
+            const sectionRows = rows.filter((r) => storeOf(r) === store);
+            return (
+              <div key={store} class="store-section" data-store={store}>
+                <h3 class="category-heading">{store}</h3>
+                {sectionRows.length === 0 ? (
+                  <div class="store-section-empty">No items — drag here to move</div>
+                ) : (
+                  sectionRows.map((row) => (
+                    <GroceryRow
+                      key={row.id}
+                      row={row}
+                      removing={removingIds.has(row.id)}
+                      dragging={dragId === row.id}
+                      onCheck={handleCheck}
+                      onRename={handleRename}
+                      onQuantity={handleQuantity}
+                      onDragStart={handleDragStart}
+                      onDragMove={handleDragMove}
+                      onDragEnd={handleDragEnd}
+                    />
+                  ))
+                )}
+              </div>
+            );
+          })
         )}
       </div>
     </div>

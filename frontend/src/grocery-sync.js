@@ -87,7 +87,7 @@ async function applyLocal(row) {
 }
 
 /** Adds a new grocery row (custom or from inventory). */
-export async function addItem({ name, item_id = null, quantity = 1 }) {
+export async function addItem({ name, item_id = null, quantity = 1, store = 'Whole Foods' }) {
   const householdId = await getHouseholdId();
   const now = new Date().toISOString();
   return applyLocal({
@@ -96,6 +96,7 @@ export async function addItem({ name, item_id = null, quantity = 1 }) {
     name,
     quantity: Math.max(1, quantity),
     item_id,
+    store,
     deleted_at: null,
     created_at: now,
     // Epoch seconds: appends after every existing row (backfill uses the
@@ -124,9 +125,16 @@ export async function restoreItem(row) {
   return applyLocal({ ...row, deleted_at: null });
 }
 
-/** Moves a row to a new sort position (drag-to-reorder). */
-export async function reorderItem(row, sortOrder) {
-  return applyLocal({ ...row, sort_order: sortOrder });
+/** Effective store; rows cached from before the store column count as
+    the default Whole Foods (matches the migration's column default). */
+export function storeOf(row) {
+  return row.store || 'Whole Foods';
+}
+
+/** Moves a row to a new sort position, and optionally another store
+    section (drag-to-reorder / drag-between-stores). */
+export async function reorderItem(row, sortOrder, store = storeOf(row)) {
+  return applyLocal({ ...row, sort_order: sortOrder, store });
 }
 
 /** Effective sort position; rows from before the sort_order column fall
