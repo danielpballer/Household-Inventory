@@ -1082,7 +1082,12 @@ body {
    Grocery List
    ============================================================ */
 /* Push the share button to the right edge of the header. */
-.grocery .screen-header .filter-chip {
+.grocery .screen-header {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.grocery .screen-header .category-filter-select {
   margin-left: auto;
 }
 
@@ -1180,10 +1185,6 @@ body {
 }
 
 /* Inventory suggestions shown under the add bar while typing */
-.store-filter-row {
-  margin-bottom: 4px;
-}
-
 .store-section {
   margin-bottom: 20px;
 }

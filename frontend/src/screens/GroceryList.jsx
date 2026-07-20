@@ -365,6 +365,17 @@ export function GroceryList() {
     <div class="grocery">
       <div class="screen-header">
         <h2>Grocery List</h2>
+        <select
+          class={`category-filter-select ${storeFilter ? 'active' : ''}`}
+          value={storeFilter}
+          onChange={(e) => setStoreFilter(e.target.value)}
+          aria-label="Filter by store"
+        >
+          <option value="">All Stores</option>
+          {STORES.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
         {rows.length > 0 && (
           <button class="filter-chip" onClick={shareList}>
             {copyFeedback ? '✓ Copied' : (
@@ -424,20 +435,6 @@ export function GroceryList() {
             ))}
           </div>
         )}
-
-        <div class="store-filter-row">
-          <select
-            class={`category-filter-select ${storeFilter ? 'active' : ''}`}
-            value={storeFilter}
-            onChange={(e) => setStoreFilter(e.target.value)}
-            aria-label="Filter by store"
-          >
-            <option value="">All Stores</option>
-            {STORES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        </div>
 
         {rows.length === 0 ? (
           <div class="empty-state">
